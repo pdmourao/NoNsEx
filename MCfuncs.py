@@ -1,5 +1,6 @@
 import numpy as np
 from MCclasses import HopfieldMC as hop, HopfieldMC_rho as hop_rho
+from MCclasses_tf import HopfieldMC_tf as hop_tf
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 
@@ -18,20 +19,19 @@ from matplotlib import pyplot as plt
 # The cutoff is the necessary magnetization for an experiment to be considered successful
 # max_it, error and H are inputs to the simulate method (See above)
 # Optional beta_min, beta_max, lmb_min and lmb_max are to be used to avoid running the simulation at certain values
-# For example, high temperatures take a long time and we know they give 0
+# For example, high temperatures take a long time, and we know they give 0
 # pbar is for the progress bar (see runMCHopfield_Lbeta.py)
 
-def disentangler(beta, cutoff, J, system = None, max_it = 30, error = 1e-3, H = 0, parallel = False, pbar = None, *args, **kwargs):
+
+def disentangler(beta, cutoff, J, system = None, error = 1e-3, H = 0, parallel = False, pbar = None, *args, **kwargs):
 
     # Case where systems are not provided a priori
     if system is None:
         system = hop(*args, **kwargs)
 
-    T = 1 / beta
-
     success = 0
 
-    final_sigma = system.simulate(max_it = max_it, error = error, J = J, T = T, H = H, parallel = parallel)[-1]
+    final_sigma = system.simulate(error = error, J = J, beta = 1/T, H = H, parallel = parallel)[-1]
     m = system.mattis(final_sigma)
 
 
@@ -59,8 +59,14 @@ def recovered_pats(m, cutoff):
 def gJprod(g, J):
     return np.transpose(np.transpose(J, [1, 3, 0, 2]) * g, [2, 0, 3, 1])
 
-def MC2d_Lb(neurons, K, rho, M, H, l_values, beta_values, max_it, error, parallel, disable = False):
-    system = hop(N=neurons, pat=K, L=3, quality=(rho, M))
+
+def MC2d_Lb(neurons, K, rho, M, H, l_values, beta_values, max_it, error, parallel, noise_dif, use_tf = False,
+            av_counter = 10, disable = False):
+
+    if parallel and use_tf:
+        system = hop_tf(N=neurons, pat=K, L=3, quality=(rho, M), noise_dif=noise_dif)
+    else:
+        system = hop(N=neurons, pat=K, L=3, quality=(rho, M), max_it = max_it, noise_dif=noise_dif)
 
     len_l = len(l_values)
     len_b = len(beta_values)
@@ -75,11 +81,16 @@ def MC2d_Lb(neurons, K, rho, M, H, l_values, beta_values, max_it, error, paralle
             J_lmb = gJprod(g, system.J)
 
             for idx_b, beta in enumerate(beta_values):
+                output = np.array(system.simulate(av_counter=av_counter, error=error, J=J_lmb, beta = beta, H=H,
+                                                  parallel=parallel, max_it = max_it))[-av_counter:]
 
-                mattisses[idx_l, idx_b] = system.mattis(
-                    system.simulate(max_it=max_it, error = error, J=J_lmb, T=1 / beta, H=H,
-                                    parallel=parallel)[-1])
-                if pbar is not None:
+                mattisses[idx_l, idx_b] = np.mean(output, axis = 0)
+
+                if disable:
+                    print(f'lmb = {round(lmb, 2)}, b = {round(beta, 2)} done.')
+                    print(f'MaxVar = {np.max(np.var(output, axis = 0))}')
+                    print(f'MaxDif = {np.max(np.sum(np.diff(output, axis = 0), axis=0))}')
+                else:
                     pbar.update(1)
 
     return mattisses

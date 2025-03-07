@@ -6,7 +6,7 @@ import os
 from storage import file_finder
 from npy_append_array import NpyAppendArray
 
-samples = 0
+samples = 10
 rho_values = np.arange(0, 0.6, 0.01)
 
 parallel = True

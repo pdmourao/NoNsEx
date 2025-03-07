@@ -9,30 +9,41 @@ import math
 # This way the FixedPoint.iterate method can feed the output as input directly
 # And it works cleanly regardless of how many outputs / inputs are necessary
 
-def partmHopEx(m, q, T, rho):
-    beta = 1/T
+def partmHopEx(n, beta, rho, errorbound):
+    lowerbound = scipy.special.erfinv(-1 + errorbound)
+    upperbound = scipy.special.erfinv(1 - errorbound)
+
     partm = (1/4)*scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2) * (
-        np.tanh((beta/(1+rho*(1-beta*(1-q))))*(m[0]+m[1]+m[2])+z*np.sqrt(rho)*np.linalg.norm(m))
-        +np.tanh((beta/(1+rho*(1-beta*(1-q))))*(m[0]+m[1]-m[2])+z*np.sqrt(rho)*np.linalg.norm(m))
-        +np.tanh((beta/(1+rho*(1-beta*(1-q))))*(m[0]-m[1]+m[2])+z*np.sqrt(rho)*np.linalg.norm(m))
-        +np.tanh((beta/(1+rho*(1-beta*(1-q))))*(m[0]-m[1]-m[2])+z*np.sqrt(rho)*np.linalg.norm(m))), -np.inf, np.inf)[0]
+        np.tanh(beta*(n[0]+n[1]+n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n))
+        +np.tanh(beta*(n[0]+n[1]-n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n))
+        +np.tanh(beta*(n[0]-n[1]+n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n))
+        +np.tanh(beta*(n[0]-n[1]-n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n))), lowerbound, upperbound)[0]
     return partm
 
-def partqHopEx(m, q, T, rho):
-    beta = 1/T
+def partqHopEx(n, beta, rho, errorbound = 0):
+    lowerbound = scipy.special.erfinv(-1 + errorbound)
+    upperbound = scipy.special.erfinv(1 - errorbound)
+
     partq = (1/4)*scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2) * (
-        (np.tanh((beta/(1+rho*(1-beta*(1-q))))*(m[0]+m[1]+m[2])+z*np.sqrt(rho)*np.linalg.norm(m)))**2
-        +(np.tanh((beta/(1+rho*(1-beta*(1-q))))*(m[0]+m[1]-m[2])+z*np.sqrt(rho)*np.linalg.norm(m)))**2
-        +(np.tanh((beta/(1+rho*(1-beta*(1-q))))*(m[0]-m[1]+m[2])+z*np.sqrt(rho)*np.linalg.norm(m)))**2
-        +(np.tanh((beta/(1+rho*(1-beta*(1-q))))*(m[0]-m[1]-m[2])+z*np.sqrt(rho)*np.linalg.norm(m)))**2), -np.inf, np.inf)[0]
+        (np.tanh(beta*(n[0]+n[1]+n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n)))**2
+        +(np.tanh(beta*(n[0]+n[1]-n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n)))**2
+        +(np.tanh(beta*(n[0]-n[1]+n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n)))**2
+        +(np.tanh(beta*(n[0]-n[1]-n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n)))**2), lowerbound, upperbound)[0]
     return partq
 
-def HopEx(m, q, T, rho, alpha, H):
-    beta = 1/T
-    n = m / (1 + rho - rho * beta * (1 - q))
-    new_m = np.array([partmHopEx(m, q, T, rho),partmHopEx([m[1], m[2], m[0]], q, T, rho), partmHopEx([m[2], m[0], m[1]], q, T, rho)])
-    new_q = partqHopEx(m, q, T, rho)
-    return new_m, new_q
+
+def HopEx(m, q, n = None, *, beta, rho, errorbound = 0, alpha=0, H=0):
+
+    if n is None:
+        n = m / (1 + rho - rho * beta * (1 - q))
+
+    new_m = np.array([partmHopEx(n, beta = beta, rho = rho, errorbound = errorbound),
+                      partmHopEx([n[1], n[0], n[2]],beta = beta, rho = rho, errorbound = errorbound),
+                      partmHopEx([n[2], n[1], n[0]], beta = beta, rho = rho, errorbound = errorbound)])
+    new_q = partqHopEx(n, beta = beta, rho = rho, errorbound = errorbound)
+    new_n = (new_m/(1+rho))+beta*(rho/(1+rho))*(1-new_q)*n
+
+    return new_m, new_q, new_n
 
 
 def CW(m, T, h):
@@ -159,22 +170,20 @@ def NoNsEx(m, q, n = None, *, beta, lmb, rho, alpha, H, errorbound = 0, p_reg = 
     if n is None:
         n = np.linalg.inv(NoNsEx_NtoM(q, beta, rho, lmb)) @ m
 
+
     gn = g(lmb) @ n
 
-    sd_HL = np.zeros(3)
     sd_rho = np.sqrt(rho) * np.linalg.norm(gn, axis = 1)
-
-    # m_out = np.zeros(shape = (3, 3))
-    # q_out = np.zeros(shape=3)
-    # for layer in range(3):
-    #     m_out[layer] = NoNsMall(x1 = beta * gn[layer], x2 = beta * sd_rho[layer], h = beta * H, errorbound = errorbound)
-    #     q_out[layer] = NoNsQ(x1 = beta * gn[layer], x2 = beta * sd_rho[layer], h = beta * H, errorbound = errorbound)
+    m_out = np.zeros(shape = (3, 3))
+    q_out = np.zeros(shape=3)
+    for layer in range(3):
+        m_out[layer] = NoNsMall(x1 = beta * gn[layer], x2 = beta * sd_rho[layer], h = beta * H, errorbound = errorbound)
+        q_out[layer] = NoNsQ(x1 = beta * gn[layer], x2 = beta * sd_rho[layer], h = beta * H, errorbound = errorbound)
 
     # This is the same as the loop above
-    m_out = vNoNsM(x1 = beta * gn, x2 = beta * sd_rho, h = beta * H, errorbound = errorbound)
-    q_out = vNoNsQ(x1=beta * gn, x2=beta * sd_rho, h=beta * H, errorbound=errorbound)
-
-    n_out = m_out + beta * rho * np.diag(1-q) @ gn
+    # m_out = vNoNsM(x1 = beta * gn, x2 = beta * sd_rho, h = beta * H, errorbound = errorbound)
+    # q_out = vNoNsQ(x1=beta * gn, x2=beta * sd_rho, h=beta * H, errorbound=errorbound)
+    n_out = (1/(1+rho))*(m_out + beta * rho * np.diag(1-q_out) @ gn)
 
     return m_out, q_out, n_out
 
@@ -242,7 +251,7 @@ def NoN_q_to_p(b, lmb, q, p_reg = 1):
     return np.array([p0, p1, p2])
 
 def m_in(epsilon=0):
-    return np.full(shape = (3, 3), fill_value = 1/2) + np.diag(np.full(3, fill_value = epsilon))
+    return np.full(shape = (3, 3), fill_value = 1/2) - np.full(shape = (3, 3), fill_value = epsilon) + np.diag(np.full(3, fill_value = 2*epsilon))
 
 initial_q = np.full(shape = 3, fill_value = 1)
 

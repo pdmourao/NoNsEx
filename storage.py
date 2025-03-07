@@ -9,6 +9,8 @@ def file_finder(directory, *args, file_spec = '', **kwargs):
         if 'npz' in file and file_spec in file:
             file_os = os.path.join(directory, file)
             with np.load(file_os) as data:
+                # for item in data.keys():
+                #     print(f'{item} = {data[item]}')
                 verdict = True
                 for key, item in kwargs.items():
                     if not np.array_equal(data[key], item):

@@ -8,10 +8,10 @@ from copy import deepcopy
 def iterator(*args, max_it, field, not_all_neg = [], error = 0, order = None, ibound = 0, min_it = 1, pbar = None, **kwargs):
     iter_list = [args]
 
+    it = 0
+
     for it in range(max_it):
-
         old_iter = iter_list[-1]
-
         # calculates new entry
         new_iter = field(*old_iter, errorbound = ibound, **kwargs)
         # print(new_n)
@@ -19,12 +19,13 @@ def iterator(*args, max_it, field, not_all_neg = [], error = 0, order = None, ib
         # calculate the error
         # if the difference is not smaller than error, add it to history, otherwise break
 
+        changeable_iter = list(new_iter)
+
         if error > 0:
             difs = [np.linalg.norm(new_iter[idx] - old_iter[idx], ord = order) for idx in range(len(args))]
 
             # this part is just if we want to avoid results oscillating between something and its symmetric
             # this is only checked for the list of indices not_all_neg
-            changeable_iter = list(new_iter)
             for reversable_idx in not_all_neg:
                 reversed_dif = np.linalg.norm(new_iter[reversable_idx] + old_iter[reversable_idx], ord = order)
                 if reversed_dif < difs[reversable_idx]:
@@ -32,14 +33,14 @@ def iterator(*args, max_it, field, not_all_neg = [], error = 0, order = None, ib
                     changeable_iter[reversable_idx] = - changeable_iter[reversable_idx]
             if it >= min_it and sum(difs) < error:
                 break
-            else:
-                iter_list.append(tuple(changeable_iter))
+
+        iter_list.append(tuple(changeable_iter))
     if pbar is not None:
         pbar.update(1)
-    return iter_list
+    return it, iter_list
 
 
-def solve(field, *args, rand = None, use_files = False, **kwargs):
+def solve(field, *args, rand = None, use_files = False, disable = False, **kwargs):
 
     x_arg = None
     x_values = None
@@ -65,7 +66,7 @@ def solve(field, *args, rand = None, use_files = False, **kwargs):
                 print('Warning: multiple arrays given as inputs.')
             x_arg = key
             x_values = value
-            filename = os.path.join(directory, f'{field.__name__}_{x_arg}{len(x_arg)}{idc}_{int(time())}')
+            filename = os.path.join(directory, f'{field.__name__}_{x_arg}{len(x_values)}{idc}_{int(time())}')
 
     if use_files:
         try:
@@ -79,32 +80,32 @@ def solve(field, *args, rand = None, use_files = False, **kwargs):
 
     if x_arg is None:
         t = time()
-        values_list = iterator(*new_args, field=field, **kwargs)
+        maxed_it, output = iterator(*new_args, field=field, **kwargs)
+        values_list = output[1:]
         print(f'0D Iterator ran in {round(time() - t, 2)} seconds')
-        m = np.zeros((len(values_list) - 1, 3, 3))
-        n = np.zeros((len(values_list) - 1, 3, 3))
-        q = np.zeros((len(values_list) - 1, 3))
-        for idx, m_entry, q_entry, n_entry in enumerate(values_list[1:]):
-            m[idx] = m_entry
-            n[idx] = n_entry
-            q[idx] = q_entry
     else:
-        m = np.zeros((len(x_values), 3, 3))
-        n = np.zeros((len(x_values), 3, 3))
-        q = np.zeros((len(x_values), 3))
         t = time()
-        for idx, value in enumerate(tqdm(x_values, disable=False)):
+        values_list = []
+        for idx, value in enumerate(tqdm(x_values, disable=disable)):
+            t0 = time()
             kwargs[x_arg] = value
-            m[idx], q[idx], n[idx] = iterator(*new_args, field=field, **kwargs)[-1]
+            maxed_it, output = iterator(*new_args, field=field, **kwargs)
+            if disable:
+                print(f'{x_arg} = {value} solved in {round(time() - t0)} seconds.')
+                print(f'Ran to {maxed_it+1} iterations.')
+                print('Output:')
+                print(output[-1])
+            values_list.append(output[-1])
         print(f'1D Iterator ran in {round((time() - t)/60, 2)} minutes')
         kwargs[x_arg] = x_values
-        if use_files:
-            print(f'Saving as {filename} :)')
-            np.savez(filename, *new_args, m=m, n=n, q=q, **kwargs)
+    output_tuple = tuple(map(np.array, zip(*values_list)))
+    if use_files and x_arg is not None:
+        output_args = ('m', 'q', 'n')
+        output_dict = {arg: output_tuple[idx] for idx, arg in enumerate(output_args)}
+        print(f'Saving as {filename} :)')
+        np.savez(filename, *new_args, **output_dict, **kwargs)
 
-
-
-    return m, q, n
+    return output_tuple
 
 
 def FindTransition(vec_m, tr_det, **kwargs):
