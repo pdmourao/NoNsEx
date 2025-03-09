@@ -1,6 +1,7 @@
 import numpy as np
 from time import time
 import random
+from tqdm import tqdm
 
 # Class HopfieldMC simulates one HopfOfHopfs system
 # It holds a state, number of neurons and layers, the patterns and the interaction matrix
@@ -35,7 +36,7 @@ import random
 
 class HopfieldMC:
 
-    def __init__(self, N, L, pat, quality, max_it, blur = None, h = None, sigma = None, noise_dif = False):
+    def __init__(self, N, L, pat, rho, M, lmb = None, blur = None, h = None, sigma = None, noise_dif = False):
         t = time()
         self.N = N
 
@@ -49,8 +50,9 @@ class HopfieldMC:
         self.K = np.shape(self.pat)[0]
         assert self.K >= self.L, 'Should have at least as many patterns as layers.'
 
-        self.rho, self.M = quality
+        self.rho, self.M = rho, M
         self.r = np.sqrt(1 / (self.rho * self.M + 1))
+
 
         # Interaction matrix constructor
         R = self.r**2 + (1 - self.r**2)/self.M
@@ -73,7 +75,13 @@ class HopfieldMC:
         self.ex = self.blur * self.pat
         ex_av = np.average(self.ex, axis=1)
 
-        self.J = (1 / (R * self.N)) * np.einsum('kui, luj -> kilj', ex_av, ex_av)
+        if lmb is None:
+            self.J = (1 / (R * self.N)) * np.einsum('kui, luj -> kilj', ex_av, ex_av)
+        else:
+            g = np.array([[1, - lmb, - lmb],
+                          [- lmb, 1, - lmb],
+                          [- lmb, - lmb, 1]])
+            self.J = (1 / (R * self.N)) * np.einsum('kl, kui, luj -> kilj', g, ex_av, ex_av)
 
         for l in range(self.L):
 
@@ -118,34 +126,41 @@ class HopfieldMC:
     # parallel is optional: if True, it runs parallel dynamics
 
     # It returns the full history of states
-    def simulate(self, beta, H, J, max_it, error, av_counter, parallel):
+    def simulate(self, beta, H, max_it, error, av_counter, parallel, J = None, disable = True, cut = False):
         t = time()
 
-        # J_tf = tf.convert_to_tensor(J, tf.float32)
-        # h_tf = tf.convert_to_tensor(self.h, tf.float32)
-        # print(f'Convertions took {time() - t} seconds.')
+        if J is None:
+            J = self.J
+        else:
+            J = J
         state = self.sigma
 
         mags = [self.mattis(state)]
 
-        for idx in range(max_it):
+        for idx in tqdm(range(max_it), disable = disable):
 
             state = dynamics(beta = beta, J = J, h = H * self.h, sigma = state, parallel = parallel)
 
             mags.append(self.mattis(state))
 
             if idx + 2 >= av_counter:
-                prev_mags_var = np.var(mags[-av_counter:], axis = 0)
-                if np.max(prev_mags_var) < error:
+                prev_mags_std = np.std(mags[-av_counter:], axis = 0)
+                if np.max(prev_mags_std) < error:
                     break
-
-        return mags
+        if cut:
+            return mags[-av_counter:]
+        else:
+            return mags
 
     # Method mattis returns an L x L array of the magnetizations with respect to the first L patterns
     def mattis(self, sigma):
-        m = (1 / self.N) * np.einsum('li, ui -> ul', sigma, self.pat[:self.L])
+        m = (1 / self.N) * np.einsum('li, ui -> lu', sigma, self.pat[:self.L])
         return m
 
+    def ex_mags(self, sigma):
+        ex_av = np.average(self.ex, axis=1)
+        n = (1 / (self.N*(1+self.rho)*self.r)) * np.einsum('li, lui -> lu', sigma, ex_av[:,:self.L])
+        return n
 
 # dynamics flips exactly L*N neurons
 # Dynamics supported:
@@ -184,52 +199,89 @@ def dynamics(beta, J, h, sigma, parallel = False):
 
 class HopfieldMC_rho:
 
-    def __init__(self, N, L, K, beta, quality, blur = None):
-        self.neurons = N
-        self.beta = beta
+    def __init__(self, N, L, pat, rho, M, blur = None, sigma = None):
+        self.N = N
 
-        if isinstance(K, int):
-            self.pat = np.random.choice([-1, 1], size = (K, N))
+        if isinstance(pat, int):
+            self.pat = np.random.choice([-1, 1], size = (pat, N))
+            self.K = pat
         else:
-            self.pat = K
+            self.pat = pat
+            self.K = len(pat)
 
-        self.rho, self.M = quality
+        self.rho, self.M = rho, M
 
         self.r = 1/np.sqrt(1+self.rho * self.M)
 
         if blur is None:
-            self.blur = np.random.choice([-1, 1], p = [(1-self.r)/2, (1+self.r)/2], size = (self.M, K, N))
+            self.blur = np.random.choice([-1, 1], p = [(1-self.r)/2, (1+self.r)/2], size = (self.M, self.K, N))
         else:
             self.blur = blur
 
         self.ex = self.blur*self.pat
         avex = np.average(self.ex, axis = 0)
         R = self.r**2 + ((1-self.r**2)/self.M)
-        self.J = (1/(N * R)) * np.einsum('ki,kj->ij', avex, avex)
-        for i in range(self.neurons):
-            self.J[i, i] = 0
 
-        self.sigma = np.sign(np.sum(self.pat[:L], axis = 0))
+        if sigma is None:
+            self.sigma = np.sign(np.sum(self.pat[:L], axis=0))
+        else:
+            self.sigma = sigma
+
+        self.J = (1/(N * R)) * np.einsum('ki,kj->ij', avex, avex)
+        for i in range(self.N):
+            self.J[i, i] = 0
+        if sigma is None:
+            self.sigma = np.sign(np.sum(self.pat[:L], axis = 0))
+        else:
+            self.sigma = sigma
+
+        J_terms = (1 / (N * R)) * np.einsum('ki,kj->kij', avex, avex)
+        for k in range(self.K):
+            for i in range(self.N):
+                pass
+                # J_terms[k, i, i] = 0
+
+        print(R)
+        ex_norm = np.array([(1/N)*np.dot(avex[u], avex[u]) for u in range(self.K)])
+        print(ex_norm)
+
+        for term in [1, 2]:
+            print(f'For term {term}')
+            print('The term for it is')
+            print(self.ex_mags(J_terms[term]@self.sigma)[term])
+            print('The rest is')
+            print(sum([self.ex_mags(J_terms[other]@self.sigma)[term] for other in range(self.K) if other != term]))
+
+
+
 
     def mattis(self, sigma):
         # print(np.shape(self.pat))
         # print(np.shape(sigma))
-        return (1/self.neurons)*(self.pat @ sigma)
+        return (1/self.N)*(self.pat @ sigma)
 
-    def simulate(self, max_it, error = 0, parallel = True):
+    def ex_mags(self, sigma):
+        ex_av = np.average(self.ex, axis=0)
+        n = (1 / (self.N*(1+self.rho)*self.r)) * (ex_av @ sigma)
+        return n
+
+    def simulate(self, beta, max_it, error = 0, parallel = False, disable = True):
         sigma_h = [self.sigma]
-        for it in range(max_it):
-            noise = np.random.uniform(low = -1, high = 1, size = self.neurons)
+        for _ in tqdm(range(max_it), disable = disable):
+            noise = np.random.uniform(low = -1, high = 1, size = self.N)
             # print('next')
             # self.beta = 1000
             # print(self.mattis(np.sign(np.tanh(self.beta * (self.J @ new_sigma)))))
             if parallel:
-                new_sigma = np.sign(np.tanh(self.beta * (self.J @ sigma_h[-1])) + noise)
+                new_sigma = np.sign(np.tanh(beta * (self.J @ sigma_h[-1])) + noise)
+                print('Field ex mags')
+                field = np.sign((self.J @ sigma_h[-1]))
+                print(self.ex_mags(field))
             else:
                 new_sigma = sigma_h[-1].copy()
-                neuron_sampling = random.sample(range(self.neurons), self.neurons)
+                neuron_sampling = random.sample(range(self.N), self.N)
                 for idx_N in neuron_sampling:
-                    new_neuron = np.sign(np.tanh(self.beta*(np.dot(self.J[idx_N], new_sigma)))+noise[idx_N])
+                    new_neuron = np.sign(np.tanh(beta*(np.dot(self.J[idx_N], new_sigma)))+noise[idx_N])
                     new_sigma[idx_N] = new_neuron
 
             sigma_h.append(new_sigma)

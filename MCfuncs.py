@@ -2,7 +2,6 @@ import numpy as np
 from MCclasses import HopfieldMC as hop, HopfieldMC_rho as hop_rho
 from MCclasses_tf import HopfieldMC_tf as hop_tf
 from tqdm import tqdm
-from matplotlib import pyplot as plt
 
 # freqs function
 # Runs the MC simulation repeatedly for the same inputs
@@ -23,34 +22,8 @@ from matplotlib import pyplot as plt
 # pbar is for the progress bar (see runMCHopfield_Lbeta.py)
 
 
-def disentangler(beta, cutoff, J, system = None, error = 1e-3, H = 0, parallel = False, pbar = None, *args, **kwargs):
-
-    # Case where systems are not provided a priori
-    if system is None:
-        system = hop(*args, **kwargs)
-
-    success = 0
-
-    final_sigma = system.simulate(error = error, J = J, beta = 1/T, H = H, parallel = parallel)[-1]
-    m = system.mattis(final_sigma)
 
 
-    return m
-
-
-# IsDisentangled checks whether an L x L matrix is disentangled
-# This is done by checking every line of the matrix for entries > cutoff
-# And then checking if the indices of those entries are all different (thanks Andrea)
-
-def recovered_pats(m, cutoff):
-    m_entries = [None, None, None]
-    for idx1, m1 in enumerate(m):
-        for idx2, m2 in enumerate(m1):
-            if m2 > cutoff:
-                m_entries[idx2] = idx1+1
-            elif m2 < - cutoff:
-                m_entries[idx2] = -idx1-1
-    return tuple(m_entries)
 
 
 # gJprod inserts a g matrix into an already computed J
@@ -64,9 +37,9 @@ def MC2d_Lb(neurons, K, rho, M, H, l_values, beta_values, max_it, error, paralle
             av_counter = 10, disable = False):
 
     if parallel and use_tf:
-        system = hop_tf(N=neurons, pat=K, L=3, quality=(rho, M), noise_dif=noise_dif)
+        system = hop_tf(N=neurons, pat=K, L=3, rho = rho, M = M, noise_dif=noise_dif)
     else:
-        system = hop(N=neurons, pat=K, L=3, quality=(rho, M), max_it = max_it, noise_dif=noise_dif)
+        system = hop(N=neurons, pat=K, L=3, rho = rho, M = M, noise_dif=noise_dif)
 
     len_l = len(l_values)
     len_b = len(beta_values)
@@ -82,21 +55,56 @@ def MC2d_Lb(neurons, K, rho, M, H, l_values, beta_values, max_it, error, paralle
 
             for idx_b, beta in enumerate(beta_values):
                 output = np.array(system.simulate(av_counter=av_counter, error=error, J=J_lmb, beta = beta, H=H,
-                                                  parallel=parallel, max_it = max_it))[-av_counter:]
+                                                  parallel=parallel, max_it = max_it, cut = True))
 
                 mattisses[idx_l, idx_b] = np.mean(output, axis = 0)
 
                 if disable:
                     print(f'lmb = {round(lmb, 2)}, b = {round(beta, 2)} done.')
-                    print(f'MaxVar = {np.max(np.var(output, axis = 0))}')
+                    print(f'MaxSD = {np.max(np.std(output, axis = 0))}')
                     print(f'MaxDif = {np.max(np.sum(np.diff(output, axis = 0), axis=0))}')
                 else:
                     pbar.update(1)
 
     return mattisses
 
+def MC1d_beta(neurons, K, rho, M, H, lmb, beta, max_it, error, parallel, noise_dif, random_systems = True, use_tf = False,
+            av_counter = 10, disable = False):
 
-def MCrho(neurons, K, lmb, rho_values, M, error, beta, H, max_it, disable = False, parallel = False):
+    mattisses = np.zeros(shape=(len(beta), 3, 3))
+
+    if random_systems:
+        print('Generating systems...')
+        if parallel and use_tf:
+            systems = [hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M) for _ in tqdm(beta)]
+        else:
+            systems = [hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M) for _ in tqdm(beta)]
+    else:
+        print('Generating system...')
+        if parallel and use_tf:
+            systems = hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M)
+        else:
+            systems = hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M)
+
+    for idx_b, beta_value in enumerate(tqdm(beta, disable=disable)):
+
+        if random_systems:
+            system = systems[idx_b]
+        else:
+            system = systems
+
+        output = np.array(system.simulate(beta=beta_value, parallel=parallel, cut=True, H=H, max_it=max_it, error=error,
+                                          av_counter=av_counter))
+
+        mattisses[idx_b] = np.mean(output, axis=0)
+
+        if disable:
+            print(f'b = {round(beta, 2)} done.')
+            print(f'MaxVar = {np.max(np.var(output, axis=0))}')
+            print(f'MaxDif = {np.max(np.sum(np.diff(output, axis=0), axis=0))}')
+
+# THIS IS NOT UP TO DATE
+def MCrho(neurons, K, lmb, rho_values, M, error, beta, H, max_it, av_counter, disable = False, parallel = False):
 
     m_array_initial = np.zeros(shape=(len(rho_values), 3, 3))
     m_array = np.zeros(shape=(len(rho_values), 3, 3))
@@ -107,9 +115,10 @@ def MCrho(neurons, K, lmb, rho_values, M, error, beta, H, max_it, disable = Fals
 
     with tqdm(total=len(rho_values), disable=disable) as pbar:
         for idx_rho, rho in enumerate(rho_values):
-            system = hop(N=neurons, pat=K, L=3, quality=(rho, M))
+            system = hop(N=neurons, pat=K, L=3, rho = rho, M = M)
             m_array_initial[idx_rho] = system.mattis(system.sigma)
-            last_sigma = system.simulate(max_it=max_it, error=error, J=gJprod(g, system.J), T=1 / beta, H=H, parallel=parallel)[-1]
+            last_sigma = system.simulate(max_it=max_it, error=error, J=gJprod(g, system.J), beta = beta, H=H,
+                                         parallel=parallel, av_counter = av_counter)[-1]
             m_array[idx_rho] = system.mattis(last_sigma)
             pbar.update(1)
 
@@ -124,11 +133,11 @@ def MCrho_s(neurons, K, rho_values, M, error, beta, max_it, disable = False, par
     with tqdm(total=len(rho_values), disable=disable) as pbar:
         for idx_rho, rho in enumerate(rho_values):
             print(rho)
-            system = hop_rho(N=neurons, K=K, L=3, quality=(rho, M), beta = beta)
+            system = hop_rho(N=neurons, pat=K, L=3, rho = rho, M = M)
             # system2 = hop(N = neurons, L = 3, pat = system.pats, ex = np.full(shape = (3, M, K, neurons), fill_value = system.ex), quality = (rho, M))
 
             m_array_initial[idx_rho] = system.mattis(system.sigma)
-            last_sigma = system.simulate(max_it=max_it, error = error, parallel=parallel)
+            last_sigma = system.simulate(beta = beta, max_it=max_it, error = error, parallel=parallel)
             m_array[idx_rho] = system.mattis(last_sigma)
             pbar.update(1)
 

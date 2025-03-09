@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from MCfuncs import gJprod, recovered_pats, MC2d_Lb
+from MCfuncs import gJprod, MC2d_Lb
+from FPfuncs import recovered_pats
 from time import time
 import os
 from storage import file_finder
@@ -16,10 +17,10 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 0
+samples = 10
 sample_graph = 30
 
-kwargs = {'neurons': 3000, 'K': 3, 'rho': 0.05, 'H': 0, 'M': 10000, 'max_it': 10, 'error': 0, 'av_counter': 1}
+kwargs = {'neurons': 3000, 'K': 3, 'rho': 0.05, 'H': 0, 'M': 10000, 'max_it': 20, 'error': 1e-2, 'av_counter': 5}
 
 parallel = False
 use_tf = False
@@ -61,7 +62,7 @@ for idx in range(samples):
                         disable = False, noise_dif=noise_dif, **kwargs)
 
     with NpyAppendArray(filename[:-1] + 'y', delete_if_exists = False) as file:
-        file.append(mattisses.reshape((1, 9 * n_pixels)))
+        file.append(mattisses.flatten())
 
     if len(files) == 0 and idx == 0:
         np.savez(filename, **kwargs)
@@ -81,32 +82,41 @@ except FileNotFoundError:
 
 samples = min(len(mattis_trials), sample_graph)
 
+states = ['3 pats', '2 pats', '1 pat', 'positive mixes','with Nones or mixes']
 m_array_trials = mattis_trials[:samples].reshape((samples, len_l, len_b, 3, 3))
-success_array = np.zeros((4, samples, len_l, len_b))
+success_array = np.zeros((len(states), samples, len_l, len_b))
 
 print('\nCalculating success rates...')
 cutoff = 0.8
+cutoff_mix = 0.1
 
 t = time()
 
-recovery_array = [[[recovered_pats(m_array_trials[idx_s, idx_l, idx_b], cutoff) for idx_b in range(len_b)] for idx_l in range(len_l)] for idx_s in range(samples)]
+recovery_array = [[[recovered_pats(m_array_trials[idx_s, idx_l, idx_b], cutoff, cutoff_mix) for idx_b in range(len_b)] for idx_l in range(len_l)] for idx_s in range(samples)]
 
 for idx_s in range(samples):
     for idx_l in range(len_l):
         for idx_b in range(len_b):
-            if idx_l == 12 and idx_b == 24:
-                print(m_array_trials[idx_s, idx_l, idx_b])
-                print(recovery_array[idx_s][idx_l][idx_b])
-                pass
-            how_many_pats = len(set([abs(index) for index in recovery_array[idx_s][idx_l][idx_b] if index is not None]))
-            for missing in range(4):
+            print(m_array_trials[idx_s, idx_l, idx_b])
+            print(recovery_array[idx_s][idx_l][idx_b])
+            how_many_pats = len(set([abs(index) for index in recovery_array[idx_s][idx_l][idx_b] if index is not None and index != 4]))
+            for missing in range(3):
                 if how_many_pats == 3 - missing:
                     success_array[missing, idx_s, idx_l, idx_b] = 1
+                    print(missing)
+            if all([index == 4 for index in recovery_array[idx_s][idx_l][idx_b]]):
+                success_array[3, idx_s, idx_l, idx_b] = 1
+                print('3')
+            elif all([index == 4 or index is None for index in recovery_array[idx_s][idx_l][idx_b]]):
+                success_array[4, idx_s, idx_l, idx_b] = 1
+                print('4')
+            if sum(success_array[:, idx_s, idx_l, idx_b]) < 1:
+                print(success_array[:, idx_s, idx_l, idx_b])
+
 
 print(f'Calculated success rates in {time() - t} seconds.')
-for missing in range(4):
-    n_pats = 3 - missing
-    c = plt.imshow(np.transpose(np.average(success_array[missing], axis = 0)), cmap = 'Greens', vmin = 0, vmax = 1,
+for idx, state in enumerate(states):
+    c = plt.imshow(np.transpose(np.average(success_array[idx], axis = 0)), cmap = 'Greens', vmin = 0, vmax = 1,
                    extent=[l_values[0], l_values[-1], beta_values[-1], beta_values[0]], aspect='auto',
                    interpolation='nearest')
 
@@ -114,6 +124,6 @@ for missing in range(4):
 
     plt.xlabel('$λ$')
     plt.ylabel(f'$β$')
-    plt.title(f'N = {kwargs['neurons']}, K = {kwargs['K']}, ρ = {kwargs['rho']}, M = {kwargs['M']}, H = {kwargs['H']}\n{samples} sample(s), {cutoff} cutoff, {n_pats} pattern(s)')
+    plt.title(f'N = {kwargs['neurons']}, K = {kwargs['K']}, ρ = {kwargs['rho']}, M = {kwargs['M']}, H = {kwargs['H']}\n{samples} sample(s), {cutoff} cutoff, {state}')
 
     plt.show()

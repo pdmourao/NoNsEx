@@ -156,5 +156,22 @@ def thresh_NoNsEx(value_new, threshold):
     return verdict
 
 
+# recovered_pats checks what pattern has been recovered at each layer or if it is a mixture
+
+def recovered_pats(m, cutoff_recovered, cutoff_mix):
+    m_entries = [None, None, None]
+    for idx1, m1 in enumerate(m):
+        for idx2, m2 in enumerate(m1):
+            if m2 > cutoff_recovered:
+                m_entries[idx1] = idx2+1
+            elif m2 < - cutoff_recovered:
+                m_entries[idx1] = -idx2-1
+        if all([1/2 - cutoff_mix < m2 < 1/2 + cutoff_mix for m2 in m1]):
+            if m_entries[idx1] is not None:
+                print('Both recovered and mixed ?!')
+            m_entries[idx1] = 4
+    return tuple(m_entries)
+
+
 # To use for axis labels
 arg_to_label = {'initial_m': 'ε', 'it': 'it', 'beta': 'β', 'rho': 'ρ', 'lmb': 'λ', 'T': 'T', 'alpha': 'α', 'H': 'H'}

@@ -36,7 +36,7 @@ tfd = tfp.distributions
 
 class HopfieldMC_tf:
 
-    def __init__(self, N, L, pat, quality, dtype = tf.float32, h = None, blur = None, sigma = None, noise_dif = False):
+    def __init__(self, N, L, pat, rho, M, lmb, dtype = tf.float32, h = None, blur = None, sigma = None, noise_dif = False):
 
         b0 = tfd.Sample(tfd.Bernoulli(probs = 1/2))
 
@@ -54,7 +54,7 @@ class HopfieldMC_tf:
         self.K = tf.shape(self.pat)[0]
         assert self.K >= self.L, 'Should have at least as many patterns as layers.'
 
-        self.rho, self.M = quality
+        self.rho, self.M = rho, M
         self.r = tf.math.sqrt(1 / (self.rho * self.M + 1))
 
         # Interaction matrix constructor
@@ -67,7 +67,7 @@ class HopfieldMC_tf:
             # Define Chi vector
             # Take shape (L, M, K, N) for simpler multiplication below
             t0 = time()
-            if noise_diff:
+            if noise_dif:
                 self.blur = br.sample(shape = [self.L, self.M, self.K, self.N])
             else:
                 self.blur = tf.experimental.numpy.full(shape=[self.L, self.M, self.K, self.N],
@@ -81,6 +81,7 @@ class HopfieldMC_tf:
                                        tf.linalg.diag(tf.zeros([self.N]), padding_value = 1),
                                        axes = 0)
 
+        # MULTIPLY LAMBDA HERE
         self.J = (1 / (R * self.N)) * tf.einsum('kui, luj, klij -> kilj', ex_av, ex_av,
                                                 tf.cast(diagonal_killer, dtype = ex_av.dtype))
 
