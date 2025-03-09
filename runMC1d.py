@@ -22,7 +22,8 @@ kwargs = {'beta': 1/np.linspace(0.01, 1, 100, endpoint = True),
 		  'H': 0,
 		  'max_it': 10,
 		  'error': 0,
-		  'av_counter': 1}
+		  'av_counter': 1,
+		  'quality': 1/2}
 
 parallel = False
 use_tf = False

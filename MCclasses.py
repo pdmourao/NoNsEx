@@ -91,7 +91,7 @@ class HopfieldMC:
             # Initial state
             if sigma is None:
                 self.sigma = np.full((self.L, self.N), np.sign(np.sum(self.pat[:self.L], axis=0)))
-            elif isinstance(sigma, tuple):
+            elif np.shape(sigma) == (self.L,):
                 self.sigma = np.zeros(shape=(self.L, self.N))
                 assert len(sigma) == self.L, 'm input does not match number of layers'
                 for idx in range(self.L):

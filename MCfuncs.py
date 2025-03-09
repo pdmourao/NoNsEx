@@ -68,7 +68,7 @@ def MC2d_Lb(neurons, K, rho, M, H, l_values, beta_values, max_it, error, paralle
 
     return mattisses
 
-def MC1d_beta(neurons, K, rho, M, H, lmb, beta, max_it, error, parallel, noise_dif, random_systems = True, use_tf = False,
+def MC1d_beta(neurons, K, rho, M, H, lmb, beta, max_it, error, quality, parallel, noise_dif, random_systems = True, use_tf = False,
             av_counter = 10, disable = False):
 
     mattisses = np.zeros(shape=(len(beta), 3, 3))
@@ -76,15 +76,15 @@ def MC1d_beta(neurons, K, rho, M, H, lmb, beta, max_it, error, parallel, noise_d
     if random_systems:
         print('Generating systems...')
         if parallel and use_tf:
-            systems = [hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M) for _ in tqdm(beta)]
+            systems = [hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M, sigma = quality) for _ in tqdm(beta)]
         else:
-            systems = [hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M) for _ in tqdm(beta)]
+            systems = [hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M, sigma = quality) for _ in tqdm(beta)]
     else:
         print('Generating system...')
         if parallel and use_tf:
-            systems = hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M)
+            systems = hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M, sigma = quality)
         else:
-            systems = hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M)
+            systems = hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M, sigma = quality)
 
     for idx_b, beta_value in enumerate(tqdm(beta, disable=disable)):
 
