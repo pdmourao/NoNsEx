@@ -55,7 +55,6 @@ except IndexError:
     filename = os.path.join('MC2d', f'MC2d_{noise_string}{dl}_Lb{n_pixels}_{int(time())}.npz')
 
 
-
 for idx in range(samples):
     t = time()
     print(f'\nSolving system {idx + 1}/{samples}...')

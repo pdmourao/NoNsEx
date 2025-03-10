@@ -2,6 +2,7 @@ import numpy as np
 from MCclasses import HopfieldMC as hop, HopfieldMC_rho as hop_rho
 from MCclasses_tf import HopfieldMC_tf as hop_tf
 from tqdm import tqdm
+from time import time
 
 # freqs function
 # Runs the MC simulation repeatedly for the same inputs
@@ -87,21 +88,23 @@ def MC1d_beta(neurons, K, rho, M, H, lmb, beta, max_it, error, quality, parallel
             systems = hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M, sigma = quality)
 
     for idx_b, beta_value in enumerate(tqdm(beta, disable=disable)):
-
+        t = time()
         if random_systems:
             system = systems[idx_b]
         else:
             system = systems
 
-        output = np.array(system.simulate(beta=beta_value, parallel=parallel, cut=True, H=H, max_it=max_it, error=error,
+        output = np.array(system.simulate(beta=beta_value, parallel=parallel, cut=False, H=H, max_it=max_it, error=error,
                                           av_counter=av_counter))
 
-        mattisses[idx_b] = np.mean(output, axis=0)
+        mattisses[idx_b] = np.mean(output[-av_counter:], axis=0)
 
         if disable:
-            print(f'b = {round(beta, 2)} done.')
-            print(f'MaxVar = {np.max(np.var(output, axis=0))}')
-            print(f'MaxDif = {np.max(np.sum(np.diff(output, axis=0), axis=0))}')
+            print(f'\nT = {round(1/beta_value, 2)} done.')
+            print(f'Output after {len(output)-1} iterations ({round(time() - t, 2)}s):')
+            print(mattisses[idx_b])
+
+    return mattisses
 
 # THIS IS NOT UP TO DATE
 def MCrho(neurons, K, lmb, rho_values, M, error, beta, H, max_it, av_counter, disable = False, parallel = False):
