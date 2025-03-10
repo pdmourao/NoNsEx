@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from MCfuncs import gJprod, MC2d_Lb
+from MCfuncs import MC2d_Lb
 from FPfuncs import recovered_pats
 from time import time
 import os
@@ -17,7 +17,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 10
+samples = 0
 sample_graph = 30
 
 kwargs = {'neurons': 3000, 'K': 3, 'rho': 0.05, 'H': 0, 'M': 10000, 'max_it': 20, 'error': 1e-2, 'av_counter': 5}
@@ -54,6 +54,8 @@ except IndexError:
     print('Creating new.')
     filename = os.path.join('MC2d', f'MC2d_{noise_string}{dl}_Lb{n_pixels}_{int(time())}.npz')
 
+
+
 for idx in range(samples):
     t = time()
     print(f'\nSolving system {idx + 1}/{samples}...')
@@ -62,7 +64,7 @@ for idx in range(samples):
                         disable = False, noise_dif=noise_dif, **kwargs)
 
     with NpyAppendArray(filename[:-1] + 'y', delete_if_exists = False) as file:
-        file.append(mattisses.flatten())
+        file.append(mattisses.reshape((1, np.size(mattisses))))
 
     if len(files) == 0 and idx == 0:
         np.savez(filename, **kwargs)
@@ -82,6 +84,7 @@ except FileNotFoundError:
 
 samples = min(len(mattis_trials), sample_graph)
 
+
 states = ['3 pats', '2 pats', '1 pat', 'positive mixes','with Nones or mixes']
 m_array_trials = mattis_trials[:samples].reshape((samples, len_l, len_b, 3, 3))
 success_array = np.zeros((len(states), samples, len_l, len_b))
@@ -97,21 +100,24 @@ recovery_array = [[[recovered_pats(m_array_trials[idx_s, idx_l, idx_b], cutoff, 
 for idx_s in range(samples):
     for idx_l in range(len_l):
         for idx_b in range(len_b):
-            print(m_array_trials[idx_s, idx_l, idx_b])
-            print(recovery_array[idx_s][idx_l][idx_b])
+            if idx_l == 1:
+                print(f'Sample {idx_s+1}, beta = {beta_values[idx_b]}, lmb = {l_values[idx_b]}')
+                print(m_array_trials[idx_s, idx_l, idx_b])
+                print(recovery_array[idx_s][idx_l][idx_b])
             how_many_pats = len(set([abs(index) for index in recovery_array[idx_s][idx_l][idx_b] if index is not None and index != 4]))
             for missing in range(3):
                 if how_many_pats == 3 - missing:
                     success_array[missing, idx_s, idx_l, idx_b] = 1
-                    print(missing)
+                    # print(missing)
             if all([index == 4 for index in recovery_array[idx_s][idx_l][idx_b]]):
                 success_array[3, idx_s, idx_l, idx_b] = 1
-                print('3')
+                # print('3')
             elif all([index == 4 or index is None for index in recovery_array[idx_s][idx_l][idx_b]]):
                 success_array[4, idx_s, idx_l, idx_b] = 1
-                print('4')
+                # print('4')
             if sum(success_array[:, idx_s, idx_l, idx_b]) < 1:
-                print(success_array[:, idx_s, idx_l, idx_b])
+                # print(success_array[:, idx_s, idx_l, idx_b])
+                pass
 
 
 print(f'Calculated success rates in {time() - t} seconds.')

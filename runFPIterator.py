@@ -2,15 +2,12 @@ import FPfuncs as fp
 import numpy as np
 from FPfields import NoNsEx, m_in, initial_q
 from matplotlib import pyplot as plt
-from tqdm import tqdm
-import os
-from time import time
-from MCfuncs import recovered_pats
+from FPfuncs import recovered_pats
 
 use_files = True
 field = NoNsEx
 
-kwargs = {'lmb': np.linspace(0, 0.5, 100, endpoint = False), 'rho': 0.2, 'beta': 3, 'alpha': 0, 'H': 0, 'max_it': 1000, 'ibound': 1e-12, 'error': 1e-10}
+kwargs = {'lmb': 0.1, 'rho': 0.05, 'beta': 1/np.linspace(0.01, 1, 100, endpoint = True), 'alpha': 0, 'H': 0, 'max_it': 1000, 'ibound': 1e-12, 'error': 1e-10}
 
 pert_1 = np.array([[ 1, 0, -1],
                    [ 1, 0, -1],
@@ -25,12 +22,12 @@ pert_4 = np.array([[ 1, -1, -1],
                    [-1,  1, -1],
                    [-1, -1,  1]])
 
-pert = 1e-8*pert_4
+pert = 0*pert_4
 
 # pert = np.array([[0.01, -0.06, 0], [0.01, -0.06, 0], [0.01, -0.06, 0]])
 
 
-args = m_in() + pert , initial_q
+args = m_in(4/10), initial_q
 print('Initial arguments:')
 print(args[0])
 print(args[1])
@@ -86,6 +83,7 @@ plt.title(", ".join(title_strings))
 
 # Testing FindTransitions
 cutoff = 0.9
+cutoff_mix = 0.1
 
 
 det_list = [lambda x: fp.disentangle_det(x, threshold =cutoff), lambda x: fp.tr_notdis_NoNsEx(x, threshold1 = cutoff)]
@@ -103,8 +101,8 @@ how_many_pats = np.zeros(len(m))
 for idx_m, m_entry in enumerate(m):
     print(f'{x_arg} = {x_values[idx_m]}')
     print(m_entry)
-    pats = recovered_pats(np.transpose(m_entry), cutoff)
-    how_many_pats[idx_m] = len(set([abs(pat) for pat in pats if pat is not None]))
+    pats = recovered_pats(m_entry, cutoff, cutoff_mix)
+    how_many_pats[idx_m] = len(set([abs(pat) for pat in pats if pat is not None and pat != 4]))
     print(pats)
     print(how_many_pats[idx_m])
 

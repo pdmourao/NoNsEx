@@ -67,7 +67,7 @@ for sample in range(samples):
 						  disable = False, **kwargs)
 
 	with NpyAppendArray(filename[:-1] + 'y', delete_if_exists=False) as file:
-		file.append(mattisses.flatten())
+		file.append(mattisses.reshape(1, np.size(mattisses)))
 
 	if len(files) == 0 and sample == 0:
 		np.savez(filename, **kwargs)

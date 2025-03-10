@@ -2,18 +2,17 @@ import FPfuncs as fp
 import numpy as np
 from FPfields import NoNsEx, m_in, initial_q
 from matplotlib import pyplot as plt
-from MCfuncs import recovered_pats
 
-samples = np.arange(10)
+samples = np.arange(20)
 use_files = True
 field = NoNsEx
 eps = 1e-10
 
-kwargs = {'lmb': np.arange(0, 0.5, 0.005), 'rho': 0, 'beta': 10, 'alpha': 0, 'H': 0, 'max_it': 1000, 'ibound': 1e-20, 'error': 1e-15}
+kwargs = {'lmb': 0.1, 'rho': 0.05, 'beta': 1/np.linspace(0.01, 1, 100, endpoint = True), 'alpha': 0, 'H': 0, 'max_it': 1000, 'ibound': 1e-20, 'error': 1e-15}
 
-
-args = m_in(), initial_q
-
+args = m_in(4/10), initial_q
+print('Initial arguments:')
+print(args)
 
 x_arg = None
 x_values = 0
@@ -43,8 +42,6 @@ for idx in samples:
     for idx_x, value in enumerate(x_values):
         print(f'{x_arg} = {round(value, 2)}')
         print(m[idx_x])
-        print(recovered_pats(np.transpose([m[idx_x]]), cutoff = cutoff))
-
 
     fig, ax = plt.subplots()
 
@@ -77,7 +74,7 @@ for idx in samples:
     # Testing FindTransitions
 
     det_list = []
-    det_list = [lambda x: fp.disentangle_det(x, threshold =cutoff), lambda x: fp.tr_notdis_NoNsEx(x, threshold1 = cutoff)]
+    det_list = [lambda x: fp.disentangle_det(x, threshold =cutoff)]
 
     for func in det_list:
         tr_idx = fp.FindTransition(tr_det = func, vec_m = m)
