@@ -110,7 +110,7 @@ def solve(field, *args, rand = None, use_files = False, disable = False, **kwarg
 
 def FindTransition(vec_m, tr_det, **kwargs):
 
-    tr_idx = -1
+    tr_idx = None
 
     for idx, m in enumerate(vec_m):
         if tr_det(vec_m[idx], **kwargs):

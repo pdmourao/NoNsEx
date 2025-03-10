@@ -3,12 +3,12 @@ import numpy as np
 from FPfields import NoNsEx, m_in, initial_q
 from matplotlib import pyplot as plt
 
-samples = np.arange(20)
+samples = 6
 use_files = True
 field = NoNsEx
 eps = 1e-10
 
-kwargs = {'lmb': 0.1, 'rho': 0.05, 'beta': 1/np.linspace(0.01, 1, 100, endpoint = True), 'alpha': 0, 'H': 0, 'max_it': 1000, 'ibound': 1e-20, 'error': 1e-15}
+kwargs = {'lmb': 0.2, 'rho': 0.1, 'beta': 1/np.linspace(0.01, 1, 100, endpoint = True), 'alpha': 0, 'H': 0, 'max_it': 1000, 'ibound': 1e-20, 'error': 1e-15}
 
 args = m_in(4/10), initial_q
 print('Initial arguments:')
@@ -24,18 +24,19 @@ for key, value in kwargs.items():
         x_arg = key
         x_values = value
 
+len_x = len(x_values)
 
-m_array = np.zeros(np.shape(samples) + np.shape(x_values) + (3, 3))
-n_array = np.zeros(np.shape(samples) + np.shape(x_values) + (3, 3))
-q_array = np.zeros(np.shape(samples) + np.shape(x_values) + (3,))
+m_array = np.zeros((samples, len_x, 3, 3))
+n_array = np.zeros((samples, len_x, 3, 3))
+q_array = np.zeros((samples, len_x, 3))
 
 cutoff = 0.9
 
-for idx in samples:
-    print(f'\nSolving sample {idx+1}/{len(samples)}...')
+for idx in range(samples):
+    print(f'\nSolving sample {idx+1}/{samples}...')
     m_array[idx], q_array[idx], n_array[idx] = fp.solve(field, *args, use_files = True, rand = (idx, eps), **kwargs)
 
-for idx in samples:
+for idx in range(samples):
     m = m_array[idx]
 
     print('New sample')
@@ -50,7 +51,7 @@ for idx in samples:
         x_values = np.arange(len(m))
 
     for i in range(3):
-        plt.scatter(x_values, m[:, i, i] - 0.01 + 0.01 * i, label=f'm[{i},{i}]')
+        plt.scatter(1/x_values, m[:, i, i] - 0.01 + 0.01 * i, label=f'm[{i},{i}]')
 
     plt.ylabel('$m$')
     plt.xlabel(f'${fp.arg_to_label[x_arg]}$')
@@ -81,5 +82,4 @@ for idx in samples:
         if tr_idx > 0:
             idx = tr_idx - 1
             plt.vlines(x=x_values[idx], ymin=0, ymax=m[idx, 1, 1], linestyle='dashed', color='black')
-
     plt.show()

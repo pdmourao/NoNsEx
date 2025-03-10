@@ -5,22 +5,26 @@ from storage import file_finder
 import os
 from npy_append_array import NpyAppendArray
 from matplotlib import pyplot as plt
+from FPfields import NoNsEx, m_in, initial_q
+import FPfuncs as fp
 
-samples = 8
-sample_graph = 30
+samples = 0
 disable = False
+colors = ['red', 'orange', 'blue', 'green']
 
 kwargs = {'beta': 1 / np.linspace(0.01, 1, 100, endpoint=True),
-          'neurons': 5000,
-          'K': 5,
           'rho': 0.1,
-          'M': 1000,
           'lmb': 0.2,
           'H': 0,
-          'max_it': 20,
-          'error': 0.02,
-          'av_counter': 5,
-          'quality': [0.9, 0.9, 0.9]
+}
+
+kwargs_MC = {'neurons': 5000,
+             'K': 5,
+             'M': 1000,
+             'max_it': 20,
+             'error': 0.02,
+             'av_counter': 5,
+             'quality': [0.9, 0.9, 0.9]
           }
 
 x_values = 1/kwargs['beta']
@@ -51,7 +55,7 @@ len_b = len(x_values)
 
 full_string = f'_{noise_string}{dl}{rand_string}_'
 
-files = file_finder('MC1d', file_spec=full_string, **kwargs)
+files = file_finder('MC1d', file_spec=full_string, **kwargs_MC, **kwargs)
 
 try:
     filename = files[0]
@@ -64,13 +68,13 @@ for sample in range(samples):
     t = time()
     print(f'\nSolving system {sample + 1}/{samples}...')
     mattisses = MC1d_beta(parallel=parallel, use_tf=use_tf, noise_dif=noise_dif, random_systems=random_systems,
-                          disable=True, **kwargs)
+                          disable=disable, **kwargs_MC, **kwargs)
 
     with NpyAppendArray(filename[:-1] + 'y', delete_if_exists=False) as file:
         file.append(mattisses.reshape(1, np.size(mattisses)))
 
     if len(files) == 0 and sample == 0:
-        np.savez(filename, **kwargs)
+        np.savez(filename, **kwargs_MC, **kwargs)
 
     print('File appended.')
 
@@ -78,21 +82,71 @@ for sample in range(samples):
     print(f'System ran in {round(t / 60)} minutes.')
 
 # CODE WHAT TO GRAPH
+
 try:
     m_arrays_flat = np.load(filename[:-1] + 'y')
 except FileNotFoundError:
-    m_arrays_flat = np.zeros((sample_graph, len_b, 3, 3))
-samples = min(len(m_arrays_flat), sample_graph)
+    m_arrays_flat = np.zeros((samples, len_b, 3, 3))
+samples = len(m_arrays_flat)
+
+print(f'Found {samples} samples.')
+
 m_arrays = m_arrays_flat[:samples].reshape((samples, len_b, 3, 3))
-m_array_av = np.mean(m_arrays, axis = 0)
 
-print(m_arrays[:, 49, :, :])
+cutoff = 0.85
 
-for i in range(3):
-    plt.scatter(x_values, m_array_av[:, i, i], label=f'm[{i},{i}]')
-    for j in range(3):
-        if j == 1 and i != 1:
-            # plt.scatter(x_values, m[:, i, j]-0.02*i, label=f'm[{i},{j}]')
-            pass
+m_MC = np.zeros((len_b, 3))
+rate_success_MC = np.zeros(len_b)
+
+x_values_1 = []
+x_values_2 = []
+m_dis = []
+m_notdis = []
+
+for idx_x, x in enumerate(x_values):
+    mags_dis = []
+    mags_all = []
+    successes = 0
+    for idx_s in range(samples):
+        this_diag = np.sort(np.diagonal(m_arrays[idx_s, idx_x]))[::-1]
+        if all([entry > cutoff for entry in this_diag]):
+            mags_dis.append(this_diag)
+            successes += 1
+        else:
+            mags_all.append(this_diag)
+    if successes > 0:
+        m_dis.append(np.mean(np.array(mags_dis)))
+        x_values_1.append(x)
+    else:
+        m_notdis.append(np.mean(np.array(mags_all), axis=0))
+        x_values_2.append(x)
+    rate_success_MC[idx_x] = successes / samples
+
+
+[plt.scatter(x_values_2, np.array(m_notdis)[:, i], label=f'm[{i},{i}]', color = colors[i]) for i in range(3)]
+plt.scatter(x_values_1, m_dis, color = colors[-1])
+plt.plot(x_values, rate_success_MC, linestyle = 'dashed', color = 'black')
+
+field = NoNsEx
+
+kwargs_FP = {'alpha': 0, 'max_it': 1000, 'ibound': 1e-20, 'error': 1e-16}
+
+pert_matrix = np.array([[1,  0,  0],
+                        [0,  0,  0],
+                        [0,  0, -1]])
+
+pert = 1e-8*pert_matrix
+args = m_in(4/10)+pert, initial_q
+
+m, q, n = fp.solve(field, *args, use_files = True, disable = False, **kwargs_FP, **kwargs)
+
+idx_tr = fp.FindTransition(vec_m = m, tr_det = fp.tr_det_NoNsEx)
+
+draw_plots = True
+if draw_plots:
+    plt.plot(x_values[:idx_tr], m[:idx_tr, 0, 0], color=colors[-1], linestyle = 'dashed')
+    [plt.plot(x_values[idx_tr:], m[idx_tr:, i, i], color = colors[i], linestyle = 'dashed') for i in range(3)]
 
 plt.show()
+
+
