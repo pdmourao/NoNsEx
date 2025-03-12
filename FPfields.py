@@ -168,7 +168,7 @@ vNoNsQ = np.vectorize(NoNsQ, signature = '(n),(),(),()->()')
 def NoNsEx(m, q, n = None, *, beta, lmb, rho, alpha, H, errorbound = 0, p_reg = 1):
 
     if n is None:
-        n = np.linalg.inv(NoNsEx_NtoM(q, beta, rho, lmb)) @ m
+        n = m/(1+rho)
 
 
     gn = g(lmb) @ n

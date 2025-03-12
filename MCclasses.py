@@ -36,7 +36,7 @@ from tqdm import tqdm
 
 class HopfieldMC:
 
-    def __init__(self, N, L, pat, rho, M, lmb = None, blur = None, h = None, sigma = None, noise_dif = False):
+    def __init__(self, N, L, pat, rho, M, compute_J = True, lmb = None, blur = None, h = None, sigma_type = 'mix', sigma_quality = np.array([1, 1, 1]), noise_dif = False):
         t = time()
         self.N = N
 
@@ -73,33 +73,38 @@ class HopfieldMC:
             self.blur = blur
 
         self.ex = self.blur * self.pat
-        ex_av = np.average(self.ex, axis=1)
+        self.ex_av = np.average(self.ex, axis=1)
 
-        if lmb is None:
-            self.J = (1 / (R * self.N)) * np.einsum('kui, luj -> kilj', ex_av, ex_av)
-        else:
-            g = np.array([[1, - lmb, - lmb],
-                          [- lmb, 1, - lmb],
-                          [- lmb, - lmb, 1]])
-            self.J = (1 / (R * self.N)) * np.einsum('kl, kui, luj -> kilj', g, ex_av, ex_av)
-
-        for l in range(self.L):
-
-            for i in range(self.N):
-                self.J[l, i, l, i] = 0
-
-            # Initial state
-            if sigma is None:
-                self.sigma = np.full((self.L, self.N), np.sign(np.sum(self.pat[:self.L], axis=0)))
-            elif np.shape(sigma) == (self.L,):
-                self.sigma = np.zeros(shape=(self.L, self.N))
-                assert len(sigma) == self.L, 'm input does not match number of layers'
-                for idx in range(self.L):
-                    self.sigma[idx] = self.pat[idx] * np.random.choice([-1, 1],
-                                                                       p=[(1 - sigma[idx]) / 2, (1 + sigma[idx]) / 2],
-                                                                       size=self.N)
+        if compute_J:
+            if lmb is None:
+                self.J = (1 / (R * self.N)) * np.einsum('kui, luj -> kilj', self.ex_av, self.ex_av)
             else:
-                self.sigma = sigma
+                g = np.array([[1, - lmb, - lmb],
+                              [- lmb, 1, - lmb],
+                              [- lmb, - lmb, 1]])
+                self.J = (1 / (R * self.N)) * np.einsum('kl, kui, luj -> kilj', g, self.ex_av, self.ex_av)
+            for l in range(self.L):
+
+                for i in range(self.N):
+                    self.J[l, i, l, i] = 0
+        else:
+            self.J = None
+
+        # Initial state
+        self.sigma = np.zeros(shape=(self.L, self.N))
+        state = np.zeros(shape=(self.L, self.N))
+        assert len(sigma_quality) == self.L, 'quality input does not match number of layers'
+
+        for idx in range(self.L):
+            state[idx] = self.pat[idx] * np.random.choice([-1, 1], p=[(1 - sigma_quality[idx]) / 2, (1 + sigma_quality[idx]) / 2], size=self.N)
+
+        if sigma_type == 'mix':
+            self.sigma = np.full((self.L, self.N), np.sign(np.sum(state, axis=0)))
+        elif sigma_type == 'dis':
+            self.sigma = state
+        elif sigma_type == 'mixex':
+            self.sigma = np.sign(np.sum(self.ex[:,0,:,:], axis=1))
+            print(np.shape(self.sigma))
 
         # External field
         if h is None:
@@ -133,24 +138,27 @@ class HopfieldMC:
             J = self.J
         else:
             J = J
+
         state = self.sigma
 
         mags = [self.mattis(state)]
+        ex_mags = [self.ex_mags(state)]
 
         for idx in tqdm(range(max_it), disable = disable):
 
             state = dynamics(beta = beta, J = J, h = H * self.h, sigma = state, parallel = parallel)
 
             mags.append(self.mattis(state))
+            ex_mags.append(self.ex_mags(state))
 
             if idx + 2 >= av_counter:
                 prev_mags_std = np.std(mags[-av_counter:], axis = 0)
                 if np.max(prev_mags_std) < error:
                     break
         if cut:
-            return mags[-av_counter:]
+            return mags[-av_counter:], ex_mags[-av_counter:]
         else:
-            return mags
+            return mags, ex_mags
 
     # Method mattis returns an L x L array of the magnetizations with respect to the first L patterns
     def mattis(self, sigma):
@@ -158,8 +166,7 @@ class HopfieldMC:
         return m
 
     def ex_mags(self, sigma):
-        ex_av = np.average(self.ex, axis=1)
-        n = (1 / (self.N*(1+self.rho)*self.r)) * np.einsum('li, lui -> lu', sigma, ex_av[:,:self.L])
+        n = (1 / (self.N*(1+self.rho)*self.r)) * np.einsum('li, lui -> lu', sigma, self.ex_av[:,:self.L])
         return n
 
 # dynamics flips exactly L*N neurons

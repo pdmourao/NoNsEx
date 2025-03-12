@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 import os
 import csv
 from storage import file_finder
-from MCfuncs import recovered_pats
+from FPfuncs import recovered_pats
 import FPfuncs as fp
 from FPfields import m_in, initial_q
 

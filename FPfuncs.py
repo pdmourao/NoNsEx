@@ -158,7 +158,7 @@ def thresh_NoNsEx(value_new, threshold):
 
 # recovered_pats checks what pattern has been recovered at each layer or if it is a mixture
 
-def recovered_pats(m, cutoff_recovered, cutoff_mix):
+def recovered_pats(m, cutoff_recovered, cutoff_mix = 0.1):
     m_entries = [None, None, None]
     for idx1, m1 in enumerate(m):
         for idx2, m2 in enumerate(m1):

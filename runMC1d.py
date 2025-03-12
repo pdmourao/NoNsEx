@@ -22,14 +22,14 @@ kwargs_MC = {'neurons': 5000,
              'K': 5,
              'M': 1000,
              'max_it': 20,
-             'error': 0.02,
+             'error': 0.01,
              'av_counter': 5,
              'quality': [0.9, 0.9, 0.9]
           }
 
 x_values = 1/kwargs['beta']
 
-parallel = False
+parallel = True
 use_tf = False
 noise_dif = False
 random_systems = False
@@ -105,7 +105,7 @@ m_notdis = []
 
 for idx_x, x in enumerate(x_values):
     mags_dis = []
-    mags_all = []
+    mags_notdis = []
     successes = 0
     for idx_s in range(samples):
         this_diag = np.sort(np.diagonal(m_arrays[idx_s, idx_x]))[::-1]
@@ -113,18 +113,18 @@ for idx_x, x in enumerate(x_values):
             mags_dis.append(this_diag)
             successes += 1
         else:
-            mags_all.append(this_diag)
+            mags_notdis.append(this_diag)
     if successes > 0:
         m_dis.append(np.mean(np.array(mags_dis)))
         x_values_1.append(x)
-    else:
-        m_notdis.append(np.mean(np.array(mags_all), axis=0))
+    if successes < samples:
+        m_notdis.append(np.mean(np.array(mags_notdis), axis=0))
         x_values_2.append(x)
     rate_success_MC[idx_x] = successes / samples
 
 
-[plt.scatter(x_values_2, np.array(m_notdis)[:, i], label=f'm[{i},{i}]', color = colors[i]) for i in range(3)]
-plt.scatter(x_values_1, m_dis, color = colors[-1])
+[plt.scatter(x_values_2, np.array(m_notdis)[:, i], label=f'm[{i},{i}]', color = colors[i], s = 1) for i in range(3)]
+plt.scatter(x_values_1, m_dis, color = colors[-1], s = 1)
 plt.plot(x_values, rate_success_MC, linestyle = 'dashed', color = 'black')
 
 field = NoNsEx
@@ -146,6 +146,10 @@ draw_plots = True
 if draw_plots:
     plt.plot(x_values[:idx_tr], m[:idx_tr, 0, 0], color=colors[-1], linestyle = 'dashed')
     [plt.plot(x_values[idx_tr:], m[idx_tr:, i, i], color = colors[i], linestyle = 'dashed') for i in range(3)]
+
+plt.vlines(x = (x_values[idx_tr-1]+x_values[idx_tr-1])/2, ymin = 0, ymax = 1, color = 'grey', linestyle = 'dashed')
+
+plt.title(f'{kwargs_MC['neurons']} neurons, K = {kwargs_MC['K']}\nrho = {kwargs['rho']}, lmb = {kwargs['lmb']}, {samples} sample(s)')
 
 plt.show()
 

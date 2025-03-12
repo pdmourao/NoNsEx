@@ -34,13 +34,13 @@ def gJprod(g, J):
     return np.transpose(np.transpose(J, [1, 3, 0, 2]) * g, [2, 0, 3, 1])
 
 
-def MC2d_Lb(neurons, K, rho, M, H, l_values, beta_values, max_it, error, parallel, noise_dif, use_tf = False,
+def MC2d_Lb(neurons, K, rho, M, H, l_values, beta_values, max_it, error, parallel, noise_dif, sigma_type, use_tf = False,
             av_counter = 10, disable = False):
 
     if parallel and use_tf:
-        system = hop_tf(N=neurons, pat=K, L=3, rho = rho, M = M, noise_dif=noise_dif)
+        system = hop_tf(N=neurons, pat=K, L=3, rho = rho, M = M, noise_dif=noise_dif, sigma_type = sigma_type)
     else:
-        system = hop(N=neurons, pat=K, L=3, rho = rho, M = M, noise_dif=noise_dif)
+        system = hop(N=neurons, pat=K, L=3, rho = rho, M = M, noise_dif=noise_dif, sigma_type = sigma_type)
 
     len_l = len(l_values)
     len_b = len(beta_values)
@@ -56,7 +56,7 @@ def MC2d_Lb(neurons, K, rho, M, H, l_values, beta_values, max_it, error, paralle
 
             for idx_b, beta in enumerate(beta_values):
                 output = np.array(system.simulate(av_counter=av_counter, error=error, J=J_lmb, beta = beta, H=H,
-                                                  parallel=parallel, max_it = max_it, cut = True))
+                                                  parallel=parallel, max_it = max_it, cut = True)[0])
 
                 mattisses[idx_l, idx_b] = np.mean(output, axis = 0)
 
@@ -77,15 +77,15 @@ def MC1d_beta(neurons, K, rho, M, H, lmb, beta, max_it, error, quality, parallel
     if random_systems:
         print('Generating systems...')
         if parallel and use_tf:
-            systems = [hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M, sigma = quality) for _ in tqdm(beta)]
+            systems = [hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M, sigma_type = 'dis', sigma_quality = quality) for _ in tqdm(beta)]
         else:
-            systems = [hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M, sigma = quality) for _ in tqdm(beta)]
+            systems = [hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M, sigma_type = 'dis', sigma_quality = quality) for _ in tqdm(beta)]
     else:
         print('Generating system...')
         if parallel and use_tf:
-            systems = hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M, sigma = quality)
+            systems = hop_tf(L=3, noise_dif=noise_dif, N = neurons, pat = K, rho = rho, M = M, sigma_type = 'dis', sigma_quality = quality)
         else:
-            systems = hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M, sigma = quality)
+            systems = hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M, sigma_type = 'dis', sigma_quality = quality)
 
     for idx_b, beta_value in enumerate(tqdm(beta, disable=disable)):
         t = time()
@@ -95,7 +95,7 @@ def MC1d_beta(neurons, K, rho, M, H, lmb, beta, max_it, error, quality, parallel
             system = systems
 
         output = np.array(system.simulate(beta=beta_value, parallel=parallel, cut=False, H=H, max_it=max_it, error=error,
-                                          av_counter=av_counter))
+                                          av_counter=av_counter)[0])
 
         mattisses[idx_b] = np.mean(output[-av_counter:], axis=0)
 
