@@ -17,14 +17,22 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 10
+samples = 0
 sample_graph = 30
 
-kwargs = {'neurons': 3000, 'K': 3, 'rho': 0.05, 'H': 0, 'M': 50, 'max_it': 20, 'error': 0.01, 'av_counter': 3}
+kwargs = {'neurons': 5000,
+          'K': 5,
+          'rho': 0.05,
+          'H': 0,
+          'M': 20,
+          'max_it': 20,
+          'error': 0.01,
+          'av_counter': 5,
+          'quality': [1, 1, 1]}
 
 sigma_type = 'mixex'
 
-parallel = False
+parallel = True
 use_tf = False
 noise_dif = False
 
@@ -92,7 +100,7 @@ m_array_trials = mattis_trials[:samples].reshape((samples, len_l, len_b, 3, 3))
 success_array = np.zeros((len(states), samples, len_l, len_b))
 
 print('\nCalculating success rates...')
-cutoff = 0.8
+cutoff = 0.7
 cutoff_mix = 0.1
 
 t = time()
