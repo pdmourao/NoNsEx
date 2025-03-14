@@ -7,9 +7,9 @@ from FPfuncs import recovered_pats
 use_files = True
 field = NoNsEx
 
-kwargs = {'lmb': np.linspace(0, 0.5, 100, endpoint = False),
+kwargs = {'lmb': 0.1,
           'rho': 0.05,
-          'beta': 10,
+          'beta': 1/np.linspace(0.01, 1, 100, endpoint = True),
           'alpha': 0,
           'H': 0,
           'max_it': 1000,
@@ -37,7 +37,11 @@ pert_6 = np.array([[3,  -2, -1],
                    [3,  -2, -1],
                    [3,  -2, -1]])
 
-pert = 1e-4*pert_4 + 1e-2*pert_6
+other_initial = np.array([[0.9, 0.1, 0.1],
+                          [0.1, 0.9, 0.1],
+                          [0.9, 0.1, 0.1]])
+
+pert = 1e-8*pert_4
 
 # pert = np.array([[0.01, -0.06, 0], [0.01, -0.06, 0], [0.01, -0.06, 0]])
 
