@@ -29,6 +29,8 @@ kwargs_MC = {'neurons': 5000,
 
 x_values = 1/kwargs['beta']
 
+sigma_type = 'mix'
+
 parallel = True
 use_tf = False
 noise_dif = False
@@ -53,7 +55,7 @@ else:
 
 len_b = len(x_values)
 
-full_string = f'_{noise_string}{dl}{rand_string}_'
+full_string = f'_{noise_string}{dl}{rand_string}_{sigma_type}_'
 
 files = file_finder('MC1d', file_spec=full_string, **kwargs_MC, **kwargs)
 
@@ -68,7 +70,7 @@ for sample in range(samples):
     t = time()
     print(f'\nSolving system {sample + 1}/{samples}...')
     mattisses = MC1d_beta(parallel=parallel, use_tf=use_tf, noise_dif=noise_dif, random_systems=random_systems,
-                          disable=disable, **kwargs_MC, **kwargs)
+                          disable=disable, sigma_type = sigma_type, **kwargs_MC, **kwargs)
 
     with NpyAppendArray(filename[:-1] + 'y', delete_if_exists=False) as file:
         file.append(mattisses.reshape(1, np.size(mattisses)))
@@ -127,27 +129,42 @@ for idx_x, x in enumerate(x_values):
 plt.scatter(x_values_1, m_dis, color = colors[-1], s = 1)
 plt.plot(x_values, rate_success_MC, linestyle = 'dashed', color = 'black')
 
-field = NoNsEx
+draw_FP = False
+if draw_FP:
+    field = NoNsEx
 
-kwargs_FP = {'alpha': 0, 'max_it': 1000, 'ibound': 1e-20, 'error': 1e-16}
+    kwargs_FP = {'alpha': 0, 'max_it': 1000, 'ibound': 1e-20, 'error': 1e-16}
 
-pert_matrix = np.array([[1,  0,  0],
-                        [0,  0,  0],
-                        [0,  0, -1]])
+    pert_matrix = np.array([[1,  0,  0],
+                            [0,  0,  0],
+                            [0,  0, -1]])
 
-pert = 1e-8*pert_matrix
-args = m_in(4/10)+pert, initial_q
+    pert = 1e-8*pert_matrix
+    if sigma_type == 'dis':
+        pert_matrix = np.array([[1, 0, 0],
+                                [0, 0, 0],
+                                [0, 0, -1]])
 
-m, q, n = fp.solve(field, *args, use_files = True, disable = False, **kwargs_FP, **kwargs)
+        pert = 1e-8 * pert_matrix
+        initial_m = m_in(kwargs_MC['quality'][0] - 1/2)
+    elif sigma_type == 'mix':
+        pert_matrix = np.array([[ 1,-1,-1],
+                                [-1, 1,-1],
+                                [-1,-1, 1]])
 
-idx_tr = fp.FindTransition(vec_m = m, tr_det = fp.tr_det_NoNsEx)
+        pert = 1e-8 * pert_matrix
+        initial_m = m_in()
 
-draw_plots = True
-if draw_plots:
+    args = initial_m+pert, initial_q
+
+    m, q, n = fp.solve(field, *args, use_files = True, disable = False, **kwargs_FP, **kwargs)
+
+    idx_tr = fp.FindTransition(vec_m = m, tr_det = fp.tr_det_NoNsEx)
+
     plt.plot(x_values[:idx_tr], m[:idx_tr, 0, 0], color=colors[-1], linestyle = 'dashed')
     [plt.plot(x_values[idx_tr:], m[idx_tr:, i, i], color = colors[i], linestyle = 'dashed') for i in range(3)]
 
-plt.vlines(x = (x_values[idx_tr-1]+x_values[idx_tr-1])/2, ymin = 0, ymax = 1, color = 'grey', linestyle = 'dashed')
+    plt.vlines(x = (x_values[idx_tr-1]+x_values[idx_tr-1])/2, ymin = 0, ymax = 1, color = 'grey', linestyle = 'dashed')
 
 plt.title(f'{kwargs_MC['neurons']} neurons, K = {kwargs_MC['K']}\nrho = {kwargs['rho']}, lmb = {kwargs['lmb']}, {samples} sample(s)')
 

@@ -17,11 +17,18 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 0
+samples = 2
 sample_graph = 30
+
+directory = 'MC2d'
+
+l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
+beta_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 
 kwargs = {'neurons': 5000,
           'K': 5,
+          'lmb': l_values,
+          'beta': beta_values,
           'rho': 0.05,
           'H': 0,
           'M': 20,
@@ -35,9 +42,6 @@ sigma_type = 'mixex'
 parallel = True
 use_tf = False
 noise_dif = False
-
-l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
-beta_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 
 len_l = len(l_values)
 len_b = len(beta_values)
@@ -57,21 +61,20 @@ else:
 
 id_string = f'{noise_string}{dl}_{sigma_type}'
 
-files = file_finder('MC2d', file_spec = id_string, **kwargs)
+files = file_finder(directory, file_spec = id_string, **kwargs)
 
 try:
     filename = files[0]
 except IndexError:
     print('Creating new.')
-    filename = os.path.join('MC2d', f'MC2d_{id_string}_Lb{n_pixels}_{int(time())}.npz')
+    filename = os.path.join(directory, f'MC2d_{id_string}_Lb{n_pixels}_{int(time())}.npz')
 
 
 for idx in range(samples):
     t = time()
     print(f'\nSolving system {idx + 1}/{samples}...')
 
-    mattisses = MC2d_Lb(l_values = l_values, beta_values = beta_values, parallel = parallel, use_tf = use_tf,
-                        disable = False, noise_dif=noise_dif, sigma_type = sigma_type, **kwargs)
+    mattisses = MC2d_Lb(parallel = parallel, use_tf = use_tf, disable = False, noise_dif=noise_dif, sigma_type = sigma_type, **kwargs)
 
     with NpyAppendArray(filename[:-1] + 'y', delete_if_exists = False) as file:
         file.append(mattisses.reshape((1, np.size(mattisses))))
