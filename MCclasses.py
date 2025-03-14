@@ -108,7 +108,7 @@ class HopfieldMC:
 
         # External field
         if h is None:
-            self.h = np.full(shape = (self.L, N), fill_value = np.sign(np.sum(self.pat[0:self.L], axis = 0)))
+            self.h = np.full(shape = (self.L, N), fill_value = np.sign(np.sum(state, axis = 0)))
         else:
             self.h = h
 
@@ -145,9 +145,9 @@ class HopfieldMC:
         ex_mags = [self.ex_mags(state)]
 
         for idx in tqdm(range(max_it), disable = disable):
-
+            prev_state = state
             state = dynamics(beta = beta, J = J, h = H * self.h, sigma = state, parallel = parallel)
-
+            flips = np.sum(np.abs(state - prev_state))
             mags.append(self.mattis(state))
             ex_mags.append(self.ex_mags(state))
 
@@ -155,6 +155,9 @@ class HopfieldMC:
                 prev_mags_std = np.std(mags[-av_counter:], axis = 0)
                 if np.max(prev_mags_std) < error:
                     break
+                elif isinstance(error, int) and flips < error:
+                    break
+
         if cut:
             return mags[-av_counter:], ex_mags[-av_counter:]
         else:

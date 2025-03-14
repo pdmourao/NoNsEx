@@ -3,8 +3,10 @@ from storage import file_finder
 from FPfields import m_in
 
 directory = 'MC2d'
-excluded = ['H', 'rho']
+excluded = []
 
+l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
+beta_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 
 for file in file_finder(directory):
     new_inputs = {}
@@ -12,10 +14,13 @@ for file in file_finder(directory):
         print(file)
         for key in data:
             new_inputs[key] = data[key]
+            if key == 'K':
+                new_inputs['lmb'] = l_values
+                new_inputs['beta'] = beta_values
             if key not in excluded:
                 print(key)
                 print(data[key])
-    new_inputs['quality'] = np.array([1, 1, 1])
-    # np.savez(file[:-4] + 'A.npz', **new_inputs)
+
+
 
 
