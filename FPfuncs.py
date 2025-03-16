@@ -2,7 +2,7 @@ from time import time
 import numpy as np
 from tqdm import tqdm
 import os
-from storage import file_finder
+from storage import npz_file_finder
 from copy import deepcopy
 
 def iterator(*args, max_it, field, not_all_neg = [], error = 0, order = None, ibound = 0, min_it = 1, pbar = None, **kwargs):
@@ -70,7 +70,7 @@ def solve(field, *args, rand = None, use_files = False, disable = False, **kwarg
 
     if use_files:
         try:
-            with np.load(file_finder(directory, *new_args, **kwargs)[0]) as data:
+            with np.load(npz_file_finder(directory, *new_args, **kwargs)[0]) as data:
                 m = data['m']
                 q = data['q']
                 n = data['n']

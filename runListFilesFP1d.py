@@ -1,5 +1,5 @@
 import numpy as np
-from storage import file_finder
+from storage import npz_file_finder
 from FPfields import m_in
 
 directory = 'FP1d'
@@ -7,7 +7,7 @@ excluded = ['m', 'q', 'n', 'arr_1', 'lmb', 'max_it', 'alpha', 'H']
 
 start_min_inputs = [0, 4/10, 1/2]
 
-for file in file_finder(directory, rho = 0.05):
+for file in npz_file_finder(directory, rho = 0.05):
     with np.load(file) as data:
         print(file)
         for key in data:

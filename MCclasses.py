@@ -36,14 +36,18 @@ from tqdm import tqdm
 
 class HopfieldMC:
 
-    def __init__(self, N, L, pat, rho, M, compute_J = True, lmb = None, blur = None, h = None, sigma_type = 'mix', sigma_quality = np.array([1, 1, 1]), noise_dif = False):
+    def __init__(self, N, L, pat, rho, M, compute_J = True, lmb = None, blur = None, h = None, sigma_type = 'mix',
+                 sigma_quality = np.array([1, 1, 1]), noise_dif = False, entropy = None):
         t = time()
         self.N = N
+        rngSS = np.random.SeedSequence(entropy)
+        self.entropy = rngSS.entropy
+        rng = np.random.default_rng(rngSS)
 
         self.L = L
         # Patterns constructor
         if isinstance(pat, int):
-            self.pat = np.random.choice([-1, 1], (pat, self.N))
+            self.pat = rng.choice([-1, 1], (pat, self.N))
         else:
             self.pat = pat
         # Holds number of patterns
@@ -64,10 +68,10 @@ class HopfieldMC:
             # Take shape (L, M, K, N) for simpler multiplication below
             t0 = time()
             if noise_dif:
-                self.blur = np.random.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
+                self.blur = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                         size=(self.L, self.M, self.K, self.N))
             else:
-                self.blur = np.full(shape = (self.L, self.M, self.K, self.N), fill_value = np.random.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
+                self.blur = np.full(shape = (self.L, self.M, self.K, self.N), fill_value = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                              size=(self.M, self.K, self.N)))
         else:
             self.blur = blur
@@ -96,7 +100,7 @@ class HopfieldMC:
         assert len(sigma_quality) == self.L, 'quality input does not match number of layers'
 
         for idx in range(self.L):
-            state[idx] = self.pat[idx] * np.random.choice([-1, 1], p=[(1 - sigma_quality[idx]) / 2, (1 + sigma_quality[idx]) / 2], size=self.N)
+            state[idx] = self.pat[idx] * rng.choice([-1, 1], p=[(1 - sigma_quality[idx]) / 2, (1 + sigma_quality[idx]) / 2], size=self.N)
 
         if sigma_type == 'mix':
             self.sigma = np.full((self.L, self.N), np.sign(np.sum(state, axis=0)))
@@ -131,8 +135,10 @@ class HopfieldMC:
     # parallel is optional: if True, it runs parallel dynamics
 
     # It returns the full history of states
-    def simulate(self, beta, H, max_it, error, av_counter, parallel, J = None, disable = True, cut = False):
+    def simulate(self, beta, H, max_it, error, av_counter, dynamic, J = None, disable = True, cut = False, sim_rngSS = None):
         t = time()
+
+        sim_rng = np.random.default_rng(sim_rngSS)
 
         if J is None:
             J = self.J
@@ -146,7 +152,7 @@ class HopfieldMC:
 
         for idx in tqdm(range(max_it), disable = disable):
             prev_state = state
-            state = dynamics(beta = beta, J = J, h = H * self.h, sigma = state, parallel = parallel)
+            state = dynamics(beta = beta, J = J, h = H * self.h, sigma = state, dynamic = dynamic, dyn_rng = sim_rng)
             flips = np.sum(np.abs(state - prev_state))
             mags.append(self.mattis(state))
             ex_mags.append(self.ex_mags(state))
@@ -185,15 +191,15 @@ class HopfieldMC:
 # sigma is the state to be updated
 # (optional) parallel = True runs parallel dynamics
 
-def dynamics(beta, J, h, sigma, parallel = False):
+def dynamics(beta, J, h, sigma, dynamic = 'sequential', dyn_rng = np.random.default_rng()):
 
     layers, neurons = np.shape(sigma)
-    noise = np.random.uniform(low = -1, high = 1, size = (layers, neurons))
+    noise = dyn_rng.uniform(low = -1, high = 1, size = (layers, neurons))
 
 
-    if parallel:
+    if dynamic == 'parallel':
         new_sigma = np.sign(np.tanh(beta * (np.einsum('kilj,lj->ki', J, sigma) + h)) + noise)
-    else:
+    elif dynamic == 'sequential':
         new_sigma = sigma.copy()
         neuron_sampling = random.sample(range(neurons), neurons)
         for idx_N in neuron_sampling:
@@ -203,6 +209,8 @@ def dynamics(beta, J, h, sigma, parallel = False):
                     np.tanh(beta * (np.einsum('ki, ki -> ', J[idx_L,idx_N,:,:], new_sigma)
                                     + h[idx_L, idx_N])) + noise[idx_L, idx_N])
                 new_sigma[idx_L, idx_N] = new_neuron
+    else:
+        raise Exception('No dynamic update rule given.')
 
     return new_sigma
 

@@ -1,7 +1,7 @@
-from MCfuncs import MC1d_beta
+from MCfuncs import MC1d_beta_old
 import numpy as np
 from time import time
-from storage import file_finder
+from storage import npz_file_finder
 import os
 from npy_append_array import NpyAppendArray
 from matplotlib import pyplot as plt
@@ -57,7 +57,7 @@ len_b = len(x_values)
 
 full_string = f'_{noise_string}{dl}{rand_string}_{sigma_type}_'
 
-files = file_finder('MC1d', file_spec=full_string, **kwargs_MC, **kwargs)
+files = npz_file_finder('MC1d', file_spec=full_string, **kwargs_MC, **kwargs)
 
 try:
     filename = files[0]
@@ -69,8 +69,8 @@ for sample in range(samples):
 
     t = time()
     print(f'\nSolving system {sample + 1}/{samples}...')
-    mattisses = MC1d_beta(parallel=parallel, use_tf=use_tf, noise_dif=noise_dif, random_systems=random_systems,
-                          disable=disable, sigma_type = sigma_type, **kwargs_MC, **kwargs)
+    mattisses = MC1d_beta_old(parallel=parallel, noise_dif=noise_dif, random_systems=random_systems,
+                              disable=disable, sigma_type = sigma_type, **kwargs_MC, **kwargs)
 
     with NpyAppendArray(filename[:-1] + 'y', delete_if_exists=False) as file:
         file.append(mattisses.reshape(1, np.size(mattisses)))

@@ -1,10 +1,10 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from MCfuncs import MC2d_Lb
+from MCfuncs import MC2d_Lb_old
 from FPfuncs import recovered_pats
 from time import time
 import os
-from storage import file_finder
+from storage import npz_file_finder
 from npy_append_array import NpyAppendArray
 
 t0 = time()
@@ -61,7 +61,7 @@ else:
 
 id_string = f'{noise_string}{dl}_{sigma_type}'
 
-files = file_finder(directory, file_spec = id_string, **kwargs)
+files = npz_file_finder(directory, file_spec = id_string, **kwargs)
 
 try:
     filename = files[0]
@@ -74,7 +74,7 @@ for idx in range(samples):
     t = time()
     print(f'\nSolving system {idx + 1}/{samples}...')
 
-    mattisses = MC2d_Lb(parallel = parallel, use_tf = use_tf, disable = False, noise_dif=noise_dif, sigma_type = sigma_type, **kwargs)
+    mattisses = MC2d_Lb_old(parallel = parallel, disable = False, noise_dif=noise_dif, sigma_type = sigma_type, **kwargs)
 
     with NpyAppendArray(filename[:-1] + 'y', delete_if_exists = False) as file:
         file.append(mattisses.reshape((1, np.size(mattisses))))

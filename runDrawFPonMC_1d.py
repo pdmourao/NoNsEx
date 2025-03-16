@@ -4,7 +4,7 @@ from time import time
 from matplotlib import pyplot as plt
 import os
 import csv
-from storage import file_finder
+from storage import npz_file_finder
 from FPfuncs import recovered_pats
 import FPfuncs as fp
 from FPfields import m_in, initial_q
@@ -29,7 +29,7 @@ if parallel:
 else:
     dl = 'S'
 
-files = file_finder('MC2d_old', file_spec = f'_{dl}D_', **kwargs)
+files = npz_file_finder('MC2d_old', file_spec =f'_{dl}D_', **kwargs)
 
 try:
     mattis_trials = np.load(files[0][:-1] + 'y')
@@ -80,8 +80,8 @@ tr_arrays = [[] for det in tr_dets]
 
 initial_m = m_in()
 
-for file in file_finder('FP1d', file_spec='NoNsEx_lmb', arr_0 = m_in, arr_1 = initial_q,
-                            rho = kwargs['rho'], H = kwargs['H'], alpha = alpha):
+for file in npz_file_finder('FP1d', file_spec='NoNsEx_lmb', arr_0 = m_in, arr_1 = initial_q,
+							rho = kwargs['rho'], H = kwargs['H'], alpha = alpha):
     with np.load(file) as data:
         for idx_det, tr_det in enumerate(tr_dets):
             idx_tr = fp.FindTransition(data['m'], tr_det=tr_det)
@@ -112,8 +112,8 @@ arrays_x = []
 
 show_graphs = False
 if show_graphs:
-    for file in file_finder('FP1d', file_spec='NoNsEx_lmb', arr_1 = initial_q,
-                                rho = kwargs['rho'], H = kwargs['H'], alpha = alpha):
+    for file in npz_file_finder('FP1d', file_spec='NoNsEx_lmb', arr_1 = initial_q,
+								rho = kwargs['rho'], H = kwargs['H'], alpha = alpha):
         with np.load(file) as data:
             arrays_m.append(data['m'])
             arrays_x.append(data['lmb'])

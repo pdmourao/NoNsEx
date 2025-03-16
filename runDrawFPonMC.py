@@ -4,7 +4,7 @@ from time import time
 from matplotlib import pyplot as plt
 import os
 import csv
-from storage import file_finder
+from storage import npz_file_finder
 from FPfuncs import recovered_pats
 import FPfuncs as fp
 from FPfields import m_in, initial_q
@@ -44,7 +44,7 @@ else:
 if filename != '':
     file = os.path.join(directory, filename)
 else:
-    file = file_finder(directory, file_spec = f'_{noise_string}{dl}_', **kwargs)[0]
+    file = npz_file_finder(directory, file_spec =f'_{noise_string}{dl}_', **kwargs)[0]
 
 try:
     mattis_trials = np.load(file[:-1] + 'y')
@@ -98,8 +98,8 @@ for beta in beta_values_FP:
 
     initial_m = m_in() + pert
 
-    for file in file_finder('FP1d', file_spec='NoNsEx', arr_0=initial_m, arr_1=initial_q,
-                            rho=kwargs['rho'], H=kwargs['H'], alpha=alpha, beta = beta, error = 1e-10):
+    for file in npz_file_finder('FP1d', file_spec='NoNsEx', arr_0=initial_m, arr_1=initial_q,
+                                rho=kwargs['rho'], H=kwargs['H'], alpha=alpha, beta = beta, error = 1e-10):
         with np.load(file) as data:
             for idx_det, tr_det in enumerate(tr_dets):
                 idx_tr = fp.FindTransition(data['m'], tr_det=tr_det)
@@ -148,8 +148,8 @@ for beta in beta_values_FP:
 
     initial_m = m_in() + pert
 
-    for file in file_finder('FP1d', file_spec='NoNsEx', arr_0=initial_m, arr_1=initial_q,
-                            rho=kwargs['rho'], H=kwargs['H'], alpha=alpha, beta = beta, error = 1e-10):
+    for file in npz_file_finder('FP1d', file_spec='NoNsEx', arr_0=initial_m, arr_1=initial_q,
+                                rho=kwargs['rho'], H=kwargs['H'], alpha=alpha, beta = beta, error = 1e-10):
         with np.load(file) as data:
             for idx_det, tr_det in enumerate(tr_dets):
                 idx_tr = fp.FindTransition(data['m'], tr_det=tr_det)
