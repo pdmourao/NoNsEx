@@ -136,7 +136,10 @@ def MC2d_Lb(neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, n_
         entropy = (entropy_from_os, idx_s)
 
         if len(mattis_flat) < len_l*len_y:
-            print(f'Sample not present or incomplete ({len(mattis_flat)}/{len_l*len_y}).')
+            if len(mattis_flat) == 0:
+                print('Sample not present.')
+            else:
+                print(f'Sample incomplete ({len(mattis_flat)}/{len_l*len_y})')
             system = hop(neurons=neurons, K=K, L=3, rho=rho, M=M, noise_dif=noise_dif, sigma_type=sigma_type,
                          quality=quality, entropy=entropy)
             t0 = time()

@@ -135,8 +135,7 @@ class HopfieldMC:
     # parallel is optional: if True, it runs parallel dynamics
 
     # It returns the full history of states
-    def simulate(self, beta, H, max_it, error, av_counter, dynamic, J = None, disable = True, cut = False,
-                 sim_rngSS = None):
+    def simulate(self, beta, H, max_it, error, av_counter, dynamic, J = None, disable = True, cut = False, sim_rngSS = None):
         t = time()
 
         sim_rng = np.random.default_rng(sim_rngSS)
@@ -157,12 +156,13 @@ class HopfieldMC:
             flips = np.sum(np.abs(state - prev_state))
             mags.append(self.mattis(state))
             ex_mags.append(self.ex_mags(state))
-
+            if disable and error >= 1:
+                print(f'{int(flips)} on iteration {idx + 1}.')
             if idx + 2 >= av_counter:
                 prev_mags_std = np.std(mags[-av_counter:], axis = 0)
-                if np.max(prev_mags_std) < error:
+                if error >= 1 and flips < error:
                     break
-                elif isinstance(error, int) and flips < error:
+                elif np.max(prev_mags_std) < error < 1:
                     break
 
         if cut:
