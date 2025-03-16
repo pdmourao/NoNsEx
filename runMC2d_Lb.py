@@ -16,13 +16,13 @@ t0 = time()
 samples = 10
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
-len_l = len(l_values)
-y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
-# y_values = np.linspace(start = 0, stop = 0.2, num = 50)
-len_y = len(y_values)
+
+# y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
+y_values = np.linspace(start = 0, stop = 0.2, num = 50)
+
 
 flip_yaxis = False
-
+disable = False
 
 kwargs = {'neurons': 5000,
           'K': 5,
@@ -51,7 +51,10 @@ states = ['3pats',
           'mix_signed',
           'other']
 
-m_array_trials = MC2d_Lb(n_samples = samples, **kwargs)
+len_l = len(l_values)
+len_y = len(y_values)
+
+m_array_trials = MC2d_Lb(disable = disable, n_samples = samples, **kwargs)
 all_samples = len(m_array_trials)
 success_array = np.zeros((len(states), all_samples, len_l, len_y))
 
