@@ -260,47 +260,27 @@ def MC1d_beta_old(neurons, K, rho, M, H, lmb, beta, max_it, error, quality, para
 
     return mattisses
 
+def pat_id(m, cutoff_rec, cutoff_mix):
+    for idx, mag in enumerate(m):
+        if mag > cutoff_rec:
+            return idx
+        if mag < -cutoff_rec:
+            return -idx
+    if np.all(1/2 - cutoff_mix < m) and np.all(m < 1/2 + cutoff_mix):
+        return 'mix'
+    if np.all(1/2 - cutoff_mix < np.abs(m)) and np.all(np.abs(m) < 1/2 + cutoff_mix):
+        return 'mix_signed'
+    return None
 
+def mags_id(m, cutoff_rec, cutoff_mix):
+    ids = [pat_id(line, cutoff_rec, cutoff_mix) for line in m]
+    if all([ident == 'mix' for ident in ids]):
+        return 'mix'
+    if all([ident in ['mix', 'mix_s'] for ident in ids]):
+        return 'mix_signed'
+    if all([isinstance(ident, int) for ident in ids]):
+        n_patterns = len(set(np.abs(ids)))
+        signed = len(set(ids)) > n_patterns
+        return f'{n_patterns}pats_signed' if signed else f'{n_patterns}pats'
+    return 'other'
 
-
-
-
-# THIS IS NOT UP TO DATE
-def MCrho(neurons, K, lmb, rho_values, M, error, beta, H, max_it, av_counter, disable = False, parallel = False):
-
-    m_array_initial = np.zeros(shape=(len(rho_values), 3, 3))
-    m_array = np.zeros(shape=(len(rho_values), 3, 3))
-
-    g = np.array([[1, - lmb, - lmb],
-                  [- lmb, 1, - lmb],
-                  [- lmb, - lmb, 1]])
-
-    with tqdm(total=len(rho_values), disable=disable) as pbar:
-        for idx_rho, rho in enumerate(rho_values):
-            system = hop(N=neurons, pat=K, L=3, rho = rho, M = M)
-            m_array_initial[idx_rho] = system.mattis(system.sigma)
-            last_sigma = system.simulate(max_it=max_it, error=error, J=gJprod(g, system.J), beta = beta, H=H,
-                                         parallel=parallel, av_counter = av_counter)[-1]
-            m_array[idx_rho] = system.mattis(last_sigma)
-            pbar.update(1)
-
-    return m_array_initial, m_array
-
-
-def MCrho_s(neurons, K, rho_values, M, error, beta, max_it, disable = False, parallel = False):
-
-    m_array_initial = np.zeros(shape=(len(rho_values), K))
-    m_array = np.zeros(shape=(len(rho_values), K))
-
-    with tqdm(total=len(rho_values), disable=disable) as pbar:
-        for idx_rho, rho in enumerate(rho_values):
-            print(rho)
-            system = hop_rho(N=neurons, pat=K, L=3, rho = rho, M = M)
-            # system2 = hop(N = neurons, L = 3, pat = system.pats, ex = np.full(shape = (3, M, K, neurons), fill_value = system.ex), quality = (rho, M))
-
-            m_array_initial[idx_rho] = system.mattis(system.sigma)
-            last_sigma = system.simulate(beta = beta, max_it=max_it, error = error, parallel=parallel)
-            m_array[idx_rho] = system.mattis(last_sigma)
-            pbar.update(1)
-
-    return m_array_initial, m_array
