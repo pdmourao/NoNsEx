@@ -179,8 +179,8 @@ def MC2d_Lb(neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, n_
 
                     if disable:
                         print(f'lmb = {round(lmb_v, 2)}, {y_arg} = {round(y_v, 2)} done.')
-                        print(f'MaxSD = {np.max(np.std(output, axis=0))}')
-                        print(f'MaxDif = {np.max(np.sum(np.diff(output, axis=0), axis=0))}')
+                        # print(f'MaxSD = {np.max(np.std(output, axis=0))}')
+                        # print(f'MaxDif = {np.max(np.sum(np.diff(output, axis=0), axis=0))}')
                     else:
                         pbar.update(1)
 
