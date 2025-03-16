@@ -13,7 +13,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 0
+samples = 10
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 len_l = len(l_values)

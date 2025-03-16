@@ -169,6 +169,11 @@ def MC2d_Lb(neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, n_
                     try:
                         mattis[idx_s, idx_l, idx_y] = mattis_flat[idx_l * len_y + idx_y]
                     except IndexError:
+                        if J_lmb is None:
+                            g = np.array([[1, - lmb_v, - lmb_v],
+                                          [- lmb_v, 1, - lmb_v],
+                                          [- lmb_v, - lmb_v, 1]])
+                            J_lmb = gJprod(g, system.J)
                         new_inputs[y_arg] = y_v
                         output = system.simulate(J=J_lmb, dynamic=dynamic, cut=True,
                                                  sim_rngSS = rng_seeds[idx_l * len_y + idx_y], **new_inputs)[0]

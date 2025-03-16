@@ -1,6 +1,4 @@
 import numpy as np
-from matplotlib import pyplot as plt
-from MCfuncs import MC2d_Lb, mags_id
 from time import time
 from storage import npz_file_finder
 import json
@@ -31,15 +29,17 @@ array_dict = {'beta': y_values,
               'error': 0.01,
               }
 
+sys_kwargs = {'neurons': 5000,
+              'K': 5,
+              'rho': 0.05,
+              'M': 100,
+              'quality': [1, 1, 1],
+              'sigma_type': 'mix',
+              'noise_dif': False
+              }
+
 dynamic = 'parallel'
-neurons = 5000
-K = 5
-rho = 0.05
-M = 100
 av_counter = 5
-quality = [1, 1, 1]
-sigma_type = 'mix'
-noise_dif = False
 
 len_l = len(l_values)
 len_y = len(y_values)
@@ -54,9 +54,8 @@ for item, value in array_dict.items():
         y_arg = item
         y_values = value
 
-npz_files = npz_file_finder(directory = directory, prints = False, neurons = neurons, K = K, dynamic = dynamic,
-                            rho = rho, M = M, quality = quality, sigma_type = sigma_type, noise_dif = noise_dif,
-                            lmb = l_values, av_counter = av_counter, **array_dict)
+npz_files = npz_file_finder(directory = directory, prints = False, dynamic = dynamic, lmb = l_values,
+                            av_counter = av_counter, **array_dict, **sys_kwargs)
 
 if len(npz_files) > 1:
     print('Warning: more than 1 experiments found for given inputs.')
@@ -74,16 +73,12 @@ entropy = (entropy_from_os, idx_s)
 
 mattis_from_file = np.load(file_npy)[idx_l*len_y + idx_y]
 
-
-
 t = time()
 # To use to compare
-system1 = hop(neurons= neurons, K= K, rho = rho, M = M, lmb = l_values[idx_l], quality= quality,
-              sigma_type = sigma_type, noise_dif = noise_dif, entropy = entropy)
+system1 = hop(lmb = l_values[idx_l], entropy = entropy, **sys_kwargs)
 
 # To use for new inputs
-system2 = hop(neurons= neurons, K= K, rho = rho, M = M, lmb = l_values[idx_l], quality= quality,
-              sigma_type = sigma_type, noise_dif = noise_dif, entropy = entropy)
+system2 = hop(lmb = l_values[idx_l], entropy = entropy, **sys_kwargs)
 
 t0 = time()
 print(f'Initialized system in {round(t0 - t, 3)} s.')
