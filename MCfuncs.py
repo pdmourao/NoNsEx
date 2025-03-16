@@ -38,7 +38,7 @@ def gJprod(g, J):
     return np.transpose(np.transpose(J, [1, 3, 0, 2]) * g, [2, 0, 3, 1])
 
 def MCHop_InAndOut(N, L, K, rho, M, lmb, h, sigma_type, sigma_quality, noise_dif, beta, H, max_it, error, av_counter, parallel, disable = True, cut = False):
-    system = hop(N = N, L = L, pat = K, rho = rho, M = M, lmb = lmb, sigma_type = sigma_type, sigma_quality = sigma_quality, noise_dif = noise_dif)
+    system = hop(neurons= N, L = L, K= K, rho = rho, M = M, lmb = lmb, sigma_type = sigma_type, quality= sigma_quality, noise_dif = noise_dif)
 
     return system.simulate(beta = beta, H = H, max_it = max_it, error = error, av_counter = av_counter, parallel = parallel, disable = True, cut = False)
 
@@ -58,16 +58,13 @@ def MC2d(y_values, y_arg, x_values, x_arg, sample_id = 0, **kwargs):
             flat_idx = y_idx * len_x + x_idx
 
 
-
-
-
-def MC2d_Lb(neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, n_samples = 1, disable = False, **sim_scalar_kwargs):
-
+def MC2d_Lb(neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, n_samples = 1, disable = False,
+            **sim_scalar_kwargs):
 
     directory = 'MC2d_Lb'
 
     json_dict = {'dynamic': dynamic,
-                 'noise': noise_dif,
+                 'noise_dif': noise_dif,
                  'sigma_type': sigma_type}
 
     npz_dict = {'neurons': neurons,
@@ -140,8 +137,8 @@ def MC2d_Lb(neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, n_
 
         if len(mattis_flat) < len_l*len_y:
             print(f'Sample not present or incomplete ({len(mattis_flat)}/{len_l*len_y}).')
-            system = hop(N=neurons, pat=K, L=3, rho=rho, M=M, noise_dif=noise_dif, sigma_type=sigma_type,
-                     sigma_quality=quality, entropy=entropy)
+            system = hop(neurons=neurons, K=K, L=3, rho=rho, M=M, noise_dif=noise_dif, sigma_type=sigma_type,
+                         quality=quality, entropy=entropy)
             t0 = time()
             print(f'Initialized system in {round(t0 - t, 3)} s.')
             rng_seeds = np.random.SeedSequence(entropy=entropy).spawn(len_l * len_y)
@@ -196,7 +193,7 @@ def MC2d_Lb_old(neurons, K, rho, M, H, lmb, beta, max_it, error, parallel, noise
     else:
         dynamic = 'sequential'
 
-    system = hop(N=neurons, pat=K, L=3, rho = rho, M = M, noise_dif=noise_dif, sigma_type = sigma_type, sigma_quality = quality)
+    system = hop(neurons=neurons, K=K, L=3, rho = rho, M = M, noise_dif=noise_dif, sigma_type = sigma_type, quality= quality)
 
     len_l = len(lmb)
     len_b = len(beta)
@@ -236,10 +233,10 @@ def MC1d_beta_old(neurons, K, rho, M, H, lmb, beta, max_it, error, quality, para
 
     if random_systems:
         print('Generating systems...')
-        systems = [hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M, sigma_type = sigma_type, sigma_quality = quality) for _ in tqdm(beta)]
+        systems = [hop(L=3, noise_dif=noise_dif, neurons= neurons, K= K, lmb = lmb, rho = rho, M = M, sigma_type = sigma_type, quality= quality) for _ in tqdm(beta)]
     else:
         print('Generating system...')
-        systems = hop(L=3, noise_dif=noise_dif, N = neurons, pat = K, lmb = lmb, rho = rho, M = M, sigma_type = sigma_type, sigma_quality = quality)
+        systems = hop(L=3, noise_dif=noise_dif, neurons= neurons, K= K, lmb = lmb, rho = rho, M = M, sigma_type = sigma_type, quality= quality)
 
     for idx_b, beta_value in enumerate(tqdm(beta, disable=disable)):
         t = time()

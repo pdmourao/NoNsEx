@@ -10,23 +10,23 @@ from tqdm import tqdm
 
 # INPUTS:
 
-# N is number of neurons
+# neurons is number of neurons
 # L is the number of layers
 
-# pat is the list of patterns.
-# Dimensions (K, N) or:
+# K is the list of patterns.
+# Dimensions (K, neurons) or:
 # If integer K is given, generates K patterns randomly
-# If decimal alpha between 0 and 1 is given, generates Floor(alpha * N) patterns
+# If decimal alpha between 0 and 1 is given, generates Floor(alpha * neurons) patterns
 
 # quality is the tuple (ρ, M)
 # Constructor calculates r and creates M examples of quality r for each pattern
 # SHOULD probably generalize this to include different r's and M's for each layer, if relevant
 
-# sigma is the initial state, dimensions (L, N)
+# sigma is the initial state, dimensions (L, neurons)
 # Computes the mixture state of the 3 first patterns if not provided
 # Can also receive a tuple of L magnetizations and it will compute a state that has the corresponding diagonal magnetizations
 
-# h is the external field, dimensions (L, N)
+# h is the external field, dimensions (L, neurons)
 # It is the scalar that comes multiplied by the external field
 
 # J is the interaction matrix
@@ -36,20 +36,20 @@ from tqdm import tqdm
 
 class HopfieldMC:
 
-    def __init__(self, N, L, pat, rho, M, compute_J = True, lmb = None, blur = None, h = None, sigma_type = 'mix',
-                 sigma_quality = np.array([1, 1, 1]), noise_dif = False, entropy = None):
+    def __init__(self, neurons, K, rho, M, sigma_type, quality, noise_dif, L = 3, blur = None, h = None,
+                 entropy = None, compute_J = True, lmb = None):
         t = time()
-        self.N = N
+        self.N = neurons
         rngSS = np.random.SeedSequence(entropy)
         self.entropy = rngSS.entropy
         rng = np.random.default_rng(rngSS)
 
         self.L = L
         # Patterns constructor
-        if isinstance(pat, int):
-            self.pat = rng.choice([-1, 1], (pat, self.N))
+        if isinstance(K, int):
+            self.pat = rng.choice([-1, 1], (K, self.N))
         else:
-            self.pat = pat
+            self.pat = K
         # Holds number of patterns
         self.K = np.shape(self.pat)[0]
         assert self.K >= self.L, 'Should have at least as many patterns as layers.'
@@ -65,7 +65,7 @@ class HopfieldMC:
         if blur is None:
             # Examples constructor
             # Define Chi vector
-            # Take shape (L, M, K, N) for simpler multiplication below
+            # Take shape (L, M, K, neurons) for simpler multiplication below
             t0 = time()
             if noise_dif:
                 self.blur = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
@@ -97,10 +97,10 @@ class HopfieldMC:
         # Initial state
         self.sigma = np.zeros(shape=(self.L, self.N))
         state = np.zeros(shape=(self.L, self.N))
-        assert len(sigma_quality) == self.L, 'quality input does not match number of layers'
+        assert len(quality) == self.L, 'quality input does not match number of layers'
 
         for idx in range(self.L):
-            state[idx] = self.pat[idx] * rng.choice([-1, 1], p=[(1 - sigma_quality[idx]) / 2, (1 + sigma_quality[idx]) / 2], size=self.N)
+            state[idx] = self.pat[idx] * rng.choice([-1, 1], p=[(1 - quality[idx]) / 2, (1 + quality[idx]) / 2], size=self.N)
 
         if sigma_type == 'mix':
             self.sigma = np.full((self.L, self.N), np.sign(np.sum(state, axis=0)))
@@ -112,12 +112,12 @@ class HopfieldMC:
 
         # External field
         if h is None:
-            self.h = np.full(shape = (self.L, N), fill_value = np.sign(np.sum(state, axis = 0)))
+            self.h = np.full(shape = (self.L, neurons), fill_value = np.sign(np.sum(state, axis = 0)))
         else:
             self.h = h
 
     # Method simulate runs the MonteCarlo simulation
-    # It does L x N flips per iteration. Each of these L x N flips is one call of the function "dynamics",
+    # It does L x neurons flips per iteration. Each of these L x neurons flips is one call of the function "dynamics",
     # defined in the file MCfuncs.py (See below)
     # At each iteration it appends the new state to the list sigma_h
     # It loops until a maximum number of iterations is reached
@@ -131,11 +131,12 @@ class HopfieldMC:
     # J is the interaction matrix
     # Despite self.J existing, it is given here as an input to allow the matrix g to be plugged in
     # error is optional
-    # it stops the simulation if less than error * L * N spins are flipped in one iteration
+    # it stops the simulation if less than error * L * neurons spins are flipped in one iteration
     # parallel is optional: if True, it runs parallel dynamics
 
     # It returns the full history of states
-    def simulate(self, beta, H, max_it, error, av_counter, dynamic, J = None, disable = True, cut = False, sim_rngSS = None):
+    def simulate(self, beta, H, max_it, error, av_counter, dynamic, J = None, disable = True, cut = False,
+                 sim_rngSS = None):
         t = time()
 
         sim_rng = np.random.default_rng(sim_rngSS)
@@ -178,7 +179,7 @@ class HopfieldMC:
         n = (1 / (self.N*(1+self.rho)*self.r)) * np.einsum('li, lui -> lu', sigma, self.ex_av[:,:self.L])
         return n
 
-# dynamics flips exactly L*N neurons
+# dynamics flips exactly L*neurons neurons
 # Dynamics supported:
 # - Non-random sequential (i.e. flips each neuron once)
 # - Parallel
@@ -191,19 +192,19 @@ class HopfieldMC:
 # sigma is the state to be updated
 # (optional) parallel = True runs parallel dynamics
 
+
 def dynamics(beta, J, h, sigma, dynamic = 'sequential', dyn_rng = np.random.default_rng()):
 
     layers, neurons = np.shape(sigma)
     noise = dyn_rng.uniform(low = -1, high = 1, size = (layers, neurons))
 
-
     if dynamic == 'parallel':
         new_sigma = np.sign(np.tanh(beta * (np.einsum('kilj,lj->ki', J, sigma) + h)) + noise)
     elif dynamic == 'sequential':
         new_sigma = sigma.copy()
-        neuron_sampling = random.sample(range(neurons), neurons)
+        neuron_sampling = dyn_rng.permutation(range(neurons))
         for idx_N in neuron_sampling:
-            layer_sampling = random.sample(range(layers), layers)
+            layer_sampling = dyn_rng.permutation(range(layers))
             for idx_L in layer_sampling:
                 new_neuron = np.sign(
                     np.tanh(beta * (np.einsum('ki, ki -> ', J[idx_L,idx_N,:,:], new_sigma)
@@ -274,7 +275,7 @@ class HopfieldMC_rho:
 
 
     def mattis(self, sigma):
-        # print(np.shape(self.pat))
+        # print(np.shape(self.K))
         # print(np.shape(sigma))
         return (1/self.N)*(self.pat @ sigma)
 

@@ -11,23 +11,23 @@ tfd = tfp.distributions
 
 # INPUTS:
 
-# N is number of neurons
+# neurons is number of neurons
 # L is the number of layers
 
-# pat is the list of patterns.
-# Dimensions (K, N) or:
+# K is the list of patterns.
+# Dimensions (K, neurons) or:
 # If integer K is given, generates K patterns randomly
-# If decimal alpha between 0 and 1 is given, generates Floor(alpha * N) patterns
+# If decimal alpha between 0 and 1 is given, generates Floor(alpha * neurons) patterns
 
 # quality is the tuple (ρ, M)
 # Constructor calculates r and creates M examples of quality r for each pattern
 # SHOULD probably generalize this to include different r's and M's for each layer, if relevant
 
-# sigma is the initial state, dimensions (L, N)
+# sigma is the initial state, dimensions (L, neurons)
 # Computes the mixture state of the 3 first patterns if not provided
 # Can also receive a tuple of L magnetizations and it will compute a state that has the corresponding diagonal magnetizations
 
-# h is the external field, dimensions (L, N)
+# h is the external field, dimensions (L, neurons)
 # It is the scalar that comes multiplied by the external field
 
 # J is the interaction matrix
@@ -65,7 +65,7 @@ class HopfieldMC_tf:
             br = tfd.Sample(tfd.Bernoulli(probs = (1+self.r)/2))
             # Examples constructor
             # Define Chi vector
-            # Take shape (L, M, K, N) for simpler multiplication below
+            # Take shape (L, M, K, neurons) for simpler multiplication below
             t0 = time()
             if noise_dif:
                 self.blur = br.sample(shape = [self.L, self.M, self.K, self.N])
@@ -99,7 +99,7 @@ class HopfieldMC_tf:
             self.h = h
 
     # Method simulate runs the MonteCarlo simulation
-    # It does L x N flips per iteration. Each of these L x N flips is one call of the function "dynamics",
+    # It does L x neurons flips per iteration. Each of these L x neurons flips is one call of the function "dynamics",
     # defined in the file MCfuncs.py (See below)
     # At each iteration it appends the new state to the list sigma_h
     # It loops until a maximum number of iterations is reached
@@ -113,7 +113,7 @@ class HopfieldMC_tf:
     # J is the interaction matrix
     # Despite self.J existing, it is given here as an input to allow the matrix g to be plugged in
     # error is optional
-    # it stops the simulation if less then error * L * N spins are flipped in one iteration
+    # it stops the simulation if less then error * L * neurons spins are flipped in one iteration
     # parallel is optional: if True, it runs parallel dynamics
 
     # It returns the full history of states

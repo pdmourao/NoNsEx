@@ -31,7 +31,7 @@ quality = [0.9, 0.9, 0.9]
 run_main = True
 if run_main:
     print('Defining system...')
-    system = hop(N=neurons, pat=K, L=3, rho=rho, M=M, lmb=lmb)
+    system = hop(neurons=neurons, K=K, L=3, rho=rho, M=M, lmb=lmb)
 
     R = system.r ** 2 + (1 - system.r ** 2) / system.M
     print(R)

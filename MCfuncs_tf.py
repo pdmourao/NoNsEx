@@ -3,7 +3,7 @@ import tensorflow as tf
 from time import time
 import random
 
-# dynamics flips exactly L*N neurons
+# dynamics flips exactly L*neurons neurons
 # Dynamics supported:
 # - Non-random sequential (i.e. flips each neuron once)
 # - Parallel

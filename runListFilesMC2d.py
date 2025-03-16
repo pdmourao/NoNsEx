@@ -1,25 +1,26 @@
 import numpy as np
 from storage import npz_file_finder
 from FPfields import m_in
+import json
 
-directory = 'MC2d'
-excluded = []
+directory = 'MC2d_Lb'
+excluded = ['lmb', 'beta', 'H', 'entropy']
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 beta_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 
 for file in npz_file_finder(directory):
-    new_inputs = {}
-    with np.load(file) as data:
-        print(file)
+    print('\n' + file)
+    file_json = file[:-3] + 'json'
+    with open(file_json, mode="r", encoding="utf-8") as json_file:
+        data = json.load(json_file)
         for key in data:
-            new_inputs[key] = data[key]
-            if key == 'K':
-                new_inputs['lmb'] = l_values
-                new_inputs['beta'] = beta_values
             if key not in excluded:
-                print(key)
-                print(data[key])
+                print(f'{key}: {data[key]}')
+    with np.load(file) as data:
+        for key in data:
+            if key not in excluded:
+                print(f'{key} = {data[key]}')
 
 
 

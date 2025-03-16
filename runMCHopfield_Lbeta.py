@@ -17,29 +17,29 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 2
-sample_graph = 30
+samples = 0
+sample_graph = 20
 
 directory = 'MC2d'
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 beta_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 
-kwargs = {'neurons': 5000,
-          'K': 5,
+kwargs = {'neurons': 3000,
+          'K': 3,
           'lmb': l_values,
           'beta': beta_values,
           'rho': 0.05,
           'H': 0,
-          'M': 20,
+          'M': 10000,
           'max_it': 20,
           'error': 0.01,
           'av_counter': 5,
           'quality': [1, 1, 1]}
 
-sigma_type = 'mixex'
+sigma_type = 'mix'
 
-parallel = True
+parallel = False
 use_tf = False
 noise_dif = False
 
@@ -59,7 +59,7 @@ if noise_dif:
 else:
     noise_string = 'dn'
 
-id_string = f'{noise_string}{dl}_{sigma_type}'
+id_string = f'{noise_string}{dl}_{sigma_type}_'
 
 files = npz_file_finder(directory, file_spec = id_string, **kwargs)
 
@@ -67,7 +67,7 @@ try:
     filename = files[0]
 except IndexError:
     print('Creating new.')
-    filename = os.path.join(directory, f'MC2d_{id_string}_Lb{n_pixels}_{int(time())}.npz')
+    filename = os.path.join(directory, f'MC2d_{id_string}Lb{n_pixels}_{int(time())}.npz')
 
 
 for idx in range(samples):
@@ -98,7 +98,7 @@ except FileNotFoundError:
 samples = min(len(mattis_trials), sample_graph)
 
 
-states = ['3 pats', '2 pats', '1 pat', 'positive mixes','with Nones or mixes']
+states = ['3 pats', '2 pats', '1 K', 'positive mixes','with Nones or mixes']
 m_array_trials = mattis_trials[:samples].reshape((samples, len_l, len_b, 3, 3))
 success_array = np.zeros((len(states), samples, len_l, len_b))
 
