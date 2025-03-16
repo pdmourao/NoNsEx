@@ -14,7 +14,7 @@ colors = ['red', 'orange', 'blue', 'green']
 
 kwargs = {'beta': 1 / np.linspace(0.01, 1, 100, endpoint=True),
           'rho': 0.1,
-          'lmb': 0.2,
+          'lmb': 0.1 ,
           'H': 0,
 }
 
@@ -95,7 +95,7 @@ print(f'Found {samples} samples.')
 
 m_arrays = m_arrays_flat[:samples].reshape((samples, len_b, 3, 3))
 
-cutoff = 0.85
+cutoff = 0.7
 
 m_MC = np.zeros((len_b, 3))
 rate_success_MC = np.zeros(len_b)
