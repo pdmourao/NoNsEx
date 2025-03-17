@@ -369,9 +369,11 @@ def mags_id(m, cutoff_rec, cutoff_mix):
 		return 'mix'
 	if all([ident in ['mix', 'mix_s'] for ident in ids]):
 		return 'mix_signed'
-	if all([isinstance(ident, int) for ident in ids]):
-		n_patterns = len(set(np.abs(ids)))
-		signed = len(set(ids)) > n_patterns
-		return f'{n_patterns}pats_signed' if signed else f'{n_patterns}pats'
+	if any([isinstance(ident, int) for ident in ids]):
+		pats_recovered = [ident for ident in ids if isinstance(ident, int)]
+		n_patterns = len(set(np.abs(pats_recovered)))
+		signed = '_signed' if len(set(pats_recovered)) > n_patterns else ''
+		inc = '_inc' if len(pats_recovered) < len(m) else ''
+		return f'{n_patterns}pats{signed}{inc}'
 	return 'other'
 

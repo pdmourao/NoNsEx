@@ -13,15 +13,15 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 10
+samples = 0
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 
-# y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
-y_values = np.linspace(start = 0, stop = 0.2, num = 50)
+y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
+# y_values = np.linspace(start = 0, stop = 0.2, num = 50)
 
 
-flip_yaxis = False
+flip_yaxis = True
 disable = False
 
 kwargs = {'neurons': 5000,
@@ -29,8 +29,8 @@ kwargs = {'neurons': 5000,
           'lmb': l_values,
           'beta': y_values,
           'rho': 0.05,
-          'H': 0,
-          'M': 100,
+          'H': 0.1,
+          'M': 150,
           'max_it': 20,
           'error': 0.01,
           'av_counter': 5,
@@ -40,16 +40,11 @@ kwargs = {'neurons': 5000,
           'noise_dif': False
           }
 
-
-states = ['3pats',
-          '3pats_signed',
-          '2pats',
-          '2pats_signed',
-          '1pats',
-          '1pats_signed',
-          'mix',
-          'mix_signed',
-          'other']
+states = [f'{num+1}pats{signed}{inc}'
+          for num in range(3)
+          for signed in ['', '_signed']
+          for inc in ['', '_inc']
+          ] + ['mix', 'mix_signed', 'other']
 
 len_l = len(l_values)
 len_y = len(y_values)
@@ -86,9 +81,8 @@ print(f'Calculated success rates in {time() - t} seconds.')
 for idx, state in enumerate(states):
     vec_to_plot = vec_for_imshow[idx]
     if np.sum(vec_to_plot) > 0:
-        c = plt.imshow(vec_for_imshow[idx], cmap = 'Greens', vmin = 0, vmax = 1,
-                       extent=[l_values[0], l_values[-1], y_min, y_max], aspect='auto',
-                       interpolation='nearest')
+        c = plt.imshow(vec_for_imshow[idx], cmap = 'Greens', vmin = 0, vmax = 1, aspect='auto', interpolation='nearest',
+                       extent = [l_values[0], l_values[-1], y_min, y_max])
 
         plt.colorbar(c)
 
