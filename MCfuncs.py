@@ -75,11 +75,11 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 			entropy_from_os = int(data['entropy'])
 		print('File found. Restarting.')
 		samples_present = len([file for file in os.listdir(directory) if
-							   file_npz[:-4] in os.path.join(directory, file) and file[-1] == 'y'])
+							   file_npz[:-4] in os.path.join(directory, file) and file[-5] == 'm.npy'])
 		print(f'There are {samples_present} sample(s) present')
 		if n_samples == 0:
 			if samples_present > 0:
-				last_sample = np.load(file_npz[:-4] + f'_sample{samples_present - 1}.npy')
+				last_sample = np.load(file_npz[:-4] + f'_sample{samples_present - 1}_m.npy')
 				if len(last_sample) < len_x * len_y:
 					samples_present -= 1
 			if samples_present > 0:
@@ -109,7 +109,7 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 		t = time()
 		print(f'\nSolving system {idx_s + 1}/{n_samples}...')
 
-		file_npy_m = file_npz[:-4] + f'_sample{idx_s}.npy'
+		file_npy_m = file_npz[:-4] + f'_sample{idx_s}_m.npy'
 		file_npy_n = file_npz[:-4] + f'_sample{idx_s}_n.npy'
 
 		try:
@@ -144,7 +144,8 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 					except IndexError:
 						inputs[y_arg] = y_v
 
-						output_m, output_n = MCHop_InAndOut(cut = True, rngSS = rng_seeds[idx_x * len_y + idx_y], **inputs)
+						output_m, output_n = MCHop_InAndOut(cut = True, rngSS = rng_seeds[idx_x * len_y + idx_y],
+															**inputs)
 
 						output_m_mean = np.mean(output_m, axis=0)
 						output_n_mean = np.mean(output_n, axis=0)
@@ -213,11 +214,11 @@ def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, nois
 			data = json.load(json_file)
 			entropy_from_os = int(data['entropy'])
 		print('File found. Restarting.')
-		samples_present = len([file for file in os.listdir(directory) if file_npz[:-4] in os.path.join(directory, file) and file[-1] == 'y'])
+		samples_present = len([file for file in os.listdir(directory) if file_npz[:-4] in os.path.join(directory, file) and file[-5] == 'm.npy'])
 		print(f'There are {samples_present} sample(s) present')
 		if n_samples == 0:
 			if samples_present > 0:
-				last_sample = np.load(file_npz[:-4] + f'_sample{samples_present - 1}.npy')
+				last_sample = np.load(file_npz[:-4] + f'_sample{samples_present - 1}_m.npy')
 				if len(last_sample) < len_l * len_y:
 					samples_present -= 1
 			if samples_present > 0:
@@ -243,7 +244,7 @@ def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, nois
 		t = time()
 		print(f'\nSolving system {idx_s + 1}/{n_samples}...')
 
-		file_npy_m = file_npz[:-4] + f'_sample{idx_s}.npy'
+		file_npy_m = file_npz[:-4] + f'_sample{idx_s}_m.npy'
 		file_npy_n = file_npz[:-4] + f'_sample{idx_s}_n.npy'
 
 		try:
