@@ -1,4 +1,4 @@
-from MCfuncs import MC1d_beta_old
+from MCfuncs import MC2d_Lb
 import numpy as np
 from time import time
 from storage import npz_file_finder
@@ -12,93 +12,50 @@ samples = 0
 disable = False
 colors = ['red', 'orange', 'blue', 'green']
 
-kwargs = {'beta': 1 / np.linspace(0.01, 1, 100, endpoint=True),
+x_arg = 'T'
+x_values = np.linspace(0.01, 1, 100, endpoint=True)
+
+kwargs = {'beta': 10,
           'rho': 0.1,
           'lmb': 0.1 ,
           'H': 0,
 }
 
+if x_arg == 'T':
+    kwargs['beta'] = 1/x_values
+else:
+    if x_arg not in ['beta', 'T', 'lmb', 'H']:
+        raise Exception('Non-allowed input!')
+    kwargs[x_arg] = x_values
+
 kwargs_MC = {'neurons': 5000,
              'K': 5,
-             'M': 1000,
+             'M': 100,
              'max_it': 20,
              'error': 0.01,
              'av_counter': 5,
-             'quality': [1, 1, 1]
-          }
+             'quality': [1, 1, 1],
+             'dynamic': 'sequential',
+             'noise_dif': False,
+             **kwargs
+             }
 
-x_values = 1/kwargs['beta']
+if x_arg == 'lmb':
+    kwargs_MC['beta'] = [kwargs_MC['beta']]
+else:
+    kwargs_MC['lmb'] = [kwargs_MC['lmb']]
 
 sigma_type = 'mix'
+len_x = len(x_values)
 
-parallel = True
-use_tf = False
-noise_dif = False
-random_systems = False
-
-if parallel and use_tf:
-    dl = 'PDtf'
-elif parallel and not use_tf:
-    dl = 'PDnp'
-else:
-    dl = 'SD'
-
-if noise_dif:
-    noise_string = 'in'
-else:
-    noise_string = 'dn'
-
-if random_systems:
-    rand_string = 'rs'
-else:
-    rand_string = 'ds'
-
-len_b = len(x_values)
-
-full_string = f'_{noise_string}{dl}{rand_string}_{sigma_type}_'
-
-files = npz_file_finder('MC1d', file_spec=full_string, **kwargs_MC, **kwargs)
-
-try:
-    filename = files[0]
-except IndexError:
-    print('Creating new.')
-    filename = os.path.join('MC1d', f'MC1d{full_string}beta{len_b}_{int(time())}.npz')
-
-for sample in range(samples):
-
-    t = time()
-    print(f'\nSolving system {sample + 1}/{samples}...')
-    mattisses = MC1d_beta_old(parallel=parallel, noise_dif=noise_dif, random_systems=random_systems,
-                              disable=disable, sigma_type = sigma_type, **kwargs_MC, **kwargs)
-
-    with NpyAppendArray(filename[:-1] + 'y', delete_if_exists=False) as file:
-        file.append(mattisses.reshape(1, np.size(mattisses)))
-
-    if len(files) == 0 and sample == 0:
-        np.savez(filename, **kwargs_MC, **kwargs)
-
-    print('File appended.')
-
-    t = time() - t
-    print(f'System ran in {round(t / 60)} minutes.')
-
-# CODE WHAT TO GRAPH
-
-try:
-    m_arrays_flat = np.load(filename[:-1] + 'y')
-except FileNotFoundError:
-    m_arrays_flat = np.zeros((samples, len_b, 3, 3))
-samples = len(m_arrays_flat)
-
-print(f'Found {samples} samples.')
-
-m_arrays = m_arrays_flat[:samples].reshape((samples, len_b, 3, 3))
+m_arrays = MC2d_Lb(disable = disable, n_samples = samples, sigma_type = sigma_type, **kwargs_MC)
+all_samples = len(m_arrays)
+m_arrays = np.reshape(m_arrays, (all_samples, len_x, 3, 3))
 
 cutoff = 0.7
 
-m_MC = np.zeros((len_b, 3))
-rate_success_MC = np.zeros(len_b)
+m_MC = np.zeros((len_x, 3))
+rate_success_MC = np.zeros(len_x)
 
 x_values_1 = []
 x_values_2 = []

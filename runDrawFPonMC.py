@@ -12,7 +12,7 @@ from FPfields import m_in, initial_q
 
 t0 = time()
 
-directory = 'MC2d'
+directory = 'MC2d_old'
 filename = ''
 
 interpolate_bool = False

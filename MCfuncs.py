@@ -24,7 +24,7 @@ from npy_append_array import NpyAppendArray
 # max_it, error and H are inputs to the simulate method (See above)
 # Optional beta_min, beta_max, lmb_min and lmb_max are to be used to avoid running the simulation at certain values
 # For example, high temperatures take a long time, and we know they give 0
-# pbar is for the progress bar (see runMCHopfield_Lbeta.py)
+# pbar is for the progress bar
 
 
 
@@ -38,24 +38,29 @@ def gJprod(g, J):
 	return np.transpose(np.transpose(J, [1, 3, 0, 2]) * g, [2, 0, 3, 1])
 
 def MCHop_InAndOut(neurons, K, rho, M, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
-				   dynamic, L = 3, h = None, rngSS = None, disable = True, cut = False):
+				   dynamic, L = 3, h = None, rngSS = np.random.SeedSequence(), prints = True, cut = False):
+	t = time()
 	system = hop(neurons= neurons, L = L, K= K, rho = rho, M = M, lmb = lmb, sigma_type = sigma_type, quality= quality,
 				 noise_dif = noise_dif, h = h, rngSS = rngSS)
+	t = time()- t
+	if prints:
+		print(f'System generated in {round(t, 2)} secs.')
 
 	sim_rngSS = rngSS.spawn(1)[0]
 
 	return system.simulate(beta = beta, H = H, max_it = max_it, error = error, av_counter = av_counter,
-						   dynamic = dynamic, cut = cut, disable = disable, sim_rngSS = sim_rngSS)
+						   dynamic = dynamic, cut = cut, disable = prints, sim_rngSS = sim_rngSS)
 
-def MC2d(n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_type, disable = False, **kwargs):
+def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_type, disable = False, **kwargs):
 
-	directory = 'MC2d'
+	directory = directory
 	len_y = len(y_values)
 	len_x = len(x_values)
 
 	json_dict = {'dynamic': dynamic,
 				 'noise_dif': noise_dif,
-				 'sigma_type': sigma_type}
+				 'sigma_type': sigma_type,
+				 'save_m': save_n}
 
 	inputs = {**json_dict, **kwargs, x_arg: x_values, y_arg: y_values}
 
@@ -94,6 +99,7 @@ def MC2d(n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_
 		np.savez(file_npz, x_arg = x_values, y_arg = y_values, **kwargs)
 
 	mattis = np.zeros((n_samples, len_x, len_y, 3, 3))
+	mattis_ex = np.zeros((n_samples, len_x, len_y, 3, 3))
 
 	t0 = time()
 	rng_seeds = np.random.SeedSequence(entropy_from_os).spawn(len_x * len_y)
@@ -103,12 +109,21 @@ def MC2d(n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_
 		t = time()
 		print(f'\nSolving system {idx_s + 1}/{n_samples}...')
 
-		file_npy = file_npz[:-4] + f'_sample{idx_s}.npy'
+		file_npy_m = file_npz[:-4] + f'_sample{idx_s}.npy'
+		file_npy_n = file_npz[:-4] + f'_sample{idx_s}_n.npy'
 
 		try:
-			mattis_flat = np.load(file_npy)
+			mattis_flat = np.load(file_npy_m)
+			if save_n:
+				mattis_flat_ex = np.load(file_npy_n)
+				assert len(mattis_flat_ex) == len(mattis_flat), 'Sample files corrupted. Fix or delete.'
+			else:
+				mattis_flat_ex = []
+
 		except FileNotFoundError:
 			mattis_flat = []
+			mattis_flat_ex = []
+
 
 		if len(mattis_flat) < len_x * len_y:
 			if len(mattis_flat) == 0:
@@ -124,16 +139,25 @@ def MC2d(n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_
 
 					try:
 						mattis[idx_s, idx_x, idx_y] = mattis_flat[idx_x * len_y + idx_y]
+						if save_n:
+							mattis_ex[idx_s, idx_x, idx_y] = mattis_flat_ex[idx_x * len_y + idx_y]
 					except IndexError:
 						inputs[y_arg] = y_v
 
-						output = MCHop_InAndOut(cut = True, rngSS = rng_seeds[idx_x * len_y + idx_y], **inputs)[0]
+						output_m, output_n = MCHop_InAndOut(cut = True, rngSS = rng_seeds[idx_x * len_y + idx_y], **inputs)
 
-						output_mean = np.mean(output, axis=0)
-						mattis[idx_s, idx_x, idx_y] = output_mean
+						output_m_mean = np.mean(output_m, axis=0)
+						output_n_mean = np.mean(output_n, axis=0)
 
-						with NpyAppendArray(file_npy) as npyf:
-							npyf.append(output_mean.reshape((1, 3, 3)))
+						mattis[idx_s, idx_x, idx_y] = output_m_mean
+						mattis_ex[idx_s, idx_x, idx_y] = output_n_mean
+
+						with NpyAppendArray(file_npy_m) as npyf:
+							npyf.append(output_m_mean.reshape((1, 3, 3)))
+
+						if save_n:
+							with NpyAppendArray(file_npy_n) as npyf:
+								npyf.append(output_n_mean.reshape((1, 3, 3)))
 
 					if disable:
 						print(f'{x_arg} = {round(x_v, 2)}, {y_arg} = {round(y_v, 2)} done.')
@@ -145,17 +169,18 @@ def MC2d(n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_
 		t = time() - t
 		print(f'System ran in {round(t / 60)} minutes.')
 
-	return mattis
+	return mattis, mattis_ex
 
 
-def MC2d_Lb(n_samples, neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, disable = False,
+def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, disable = False,
 			**sim_scalar_kwargs):
 
-	directory = 'MC2d_Lb'
+	directory = directory
 
 	json_dict = {'dynamic': dynamic,
 				 'noise_dif': noise_dif,
-				 'sigma_type': sigma_type}
+				 'sigma_type': sigma_type,
+				 'save_n': save_n}
 
 	npz_dict = {'neurons': neurons,
 				'K': K,
@@ -212,17 +237,27 @@ def MC2d_Lb(n_samples, neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, 
 		np.savez(file_npz, **npz_dict, **sim_scalar_kwargs)
 
 	mattis = np.zeros((n_samples, len_l, len_y, 3, 3))
+	mattis_ex = np.zeros((n_samples, len_l, len_y, 3, 3))
 
 	for idx_s in range(n_samples):
 		t = time()
 		print(f'\nSolving system {idx_s + 1}/{n_samples}...')
 
-		file_npy = file_npz[:-4] + f'_sample{idx_s}.npy'
+		file_npy_m = file_npz[:-4] + f'_sample{idx_s}.npy'
+		file_npy_n = file_npz[:-4] + f'_sample{idx_s}_n.npy'
 
 		try:
-			mattis_flat = np.load(file_npy)
+			mattis_flat = np.load(file_npy_m)
+			if save_n:
+				mattis_flat_ex = np.load(file_npy_n)
+				assert len(mattis_flat_ex) == len(mattis_flat), 'Sample files corrupted. Fix or delete.'
+			else:
+				mattis_flat_ex = []
+
 		except FileNotFoundError:
 			mattis_flat = []
+			mattis_flat_ex = []
+
 		entropy = (entropy_from_os, idx_s)
 
 		if len(mattis_flat) < len_l*len_y:
@@ -259,14 +294,23 @@ def MC2d_Lb(n_samples, neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, 
 
 					try:
 						mattis[idx_s, idx_l, idx_y] = mattis_flat[idx_l * len_y + idx_y]
+						if save_n:
+							mattis_ex[idx_s, idx_l, idx_y] = mattis_flat_ex[idx_l * len_y + idx_y]
 					except IndexError:
 						new_inputs[y_arg] = y_v
-						output = system.simulate(J=J_lmb, dynamic=dynamic, cut=True,
-												 sim_rngSS = rng_seeds[idx_l * len_y + idx_y], **new_inputs)[0]
-						output_mean = np.mean(output, axis=0)
-						mattis[idx_s, idx_l, idx_y] = output_mean
-						with NpyAppendArray(file_npy) as npyf:
-							npyf.append(output_mean.reshape((1, 3, 3)))
+						output_m, output_n = system.simulate(J=J_lmb, dynamic=dynamic, cut=True,
+												 sim_rngSS = rng_seeds[idx_l * len_y + idx_y], **new_inputs)
+						output_m_mean = np.mean(output_m, axis=0)
+						output_n_mean = np.mean(output_m, axis=0)
+
+						mattis[idx_s, idx_l, idx_y] = output_m_mean
+						mattis_ex[idx_s, idx_l, idx_y] = output_n_mean
+
+						with NpyAppendArray(file_npy_m) as npyf:
+							npyf.append(output_m_mean.reshape((1, 3, 3)))
+						if save_n:
+							with NpyAppendArray(file_npy_n) as npyf:
+								npyf.append(output_n_mean.reshape((1, 3, 3)))
 
 					if disable:
 						print(f'lmb = {round(lmb_v, 2)}, {y_arg} = {round(y_v, 2)} done.')
@@ -278,7 +322,7 @@ def MC2d_Lb(n_samples, neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, 
 		t = time() - t
 		print(f'System ran in {round(t / 60)} minutes.')
 
-	return mattis
+	return mattis, mattis_ex
 
 def MC2d_Lb_old(neurons, K, rho, M, H, lmb, beta, max_it, error, parallel, noise_dif, sigma_type, quality, av_counter = 10, disable = False):
 

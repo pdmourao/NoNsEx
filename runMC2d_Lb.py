@@ -28,8 +28,8 @@ kwargs = {'neurons': 5000,
           'K': 5,
           'lmb': l_values,
           'beta': y_values,
-          'rho': 0.2,
-          'H': 0.1,
+          'rho': 0.05,
+          'H': 0,
           'M': 150,
           'max_it': 20,
           'error': 0.01,
@@ -37,7 +37,8 @@ kwargs = {'neurons': 5000,
           'quality': [1, 1, 1],
           'dynamic': 'sequential',
           'sigma_type': 'mix',
-          'noise_dif': False
+          'noise_dif': False,
+          'save_n': False
           }
 
 states = [f'{num+1}pats{signed}{inc}'
@@ -49,7 +50,9 @@ states = [f'{num+1}pats{signed}{inc}'
 len_l = len(l_values)
 len_y = len(y_values)
 
-m_array_trials = MC2d_Lb(disable = disable, n_samples = samples, **kwargs)
+m_array_trials, n_array_trials = MC2d_Lb(directory = 'MC2d_Lb', disable = disable, n_samples = samples, **kwargs)
+
+print(m_array_trials)
 all_samples = len(m_array_trials)
 success_array = np.zeros((len(states), all_samples, len_l, len_y))
 
