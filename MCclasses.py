@@ -37,10 +37,10 @@ from tqdm import tqdm
 class HopfieldMC:
 
     def __init__(self, neurons, K, rho, M, sigma_type, quality, noise_dif, L = 3, blur = None, h = None,
-                 entropy = None, compute_J = True, lmb = None):
+                 rngSS = None, compute_J = True, lmb = None):
         t = time()
         self.N = neurons
-        rngSS = np.random.SeedSequence(entropy)
+
         self.entropy = rngSS.entropy
         rng = np.random.default_rng(rngSS)
 
