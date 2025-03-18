@@ -13,7 +13,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 5
+samples = 1
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 
@@ -25,7 +25,7 @@ flip_yaxis = False
 disable = False
 
 kwargs = {'neurons': 5000,
-          'K': 5,
+          'K': 50,
           'lmb': l_values,
           'beta': np.inf,
           'rho': 0,
@@ -57,7 +57,7 @@ all_samples = len(m_array_trials)
 success_array = np.zeros((len(states), all_samples, len_l, len_y))
 
 print('\nCalculating success rates...')
-cutoff = 0.8
+cutoff = 0.95
 cutoff_mix = 0.1
 
 t = time()
