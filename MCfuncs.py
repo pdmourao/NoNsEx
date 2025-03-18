@@ -37,10 +37,10 @@ from npy_append_array import NpyAppendArray
 def gJprod(g, J):
 	return np.transpose(np.transpose(J, [1, 3, 0, 2]) * g, [2, 0, 3, 1])
 
-def MCHop_InAndOut(neurons, K, rho, M, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
+def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
 				   dynamic, L = 3, h = None, rngSS = np.random.SeedSequence(), prints = True, cut = False):
 	t = time()
-	system = hop(neurons= neurons, L = L, K= K, rho = rho, M = M, lmb = lmb, sigma_type = sigma_type, quality= quality,
+	system = hop(neurons= neurons, L = L, K= K, rho = rho, M = M, mixM = mixM, lmb = lmb, sigma_type = sigma_type, quality= quality,
 				 noise_dif = noise_dif, h = h, rngSS = rngSS)
 	t = time()- t
 	if prints:
@@ -173,7 +173,7 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 	return mattis, mattis_ex
 
 
-def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, disable = False,
+def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, mixM, lmb, dynamic, noise_dif, sigma_type, quality, disable = False,
 			**sim_scalar_kwargs):
 
 	directory = directory
@@ -187,6 +187,7 @@ def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, nois
 				'K': K,
 				'rho': rho,
 				'M': M,
+				'mixM': mixM,
 				'lmb': lmb,
 				'quality': quality}
 
@@ -268,7 +269,7 @@ def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, nois
 				print(f'Sample incomplete ({len(mattis_flat)}/{len_l*len_y})')
 			rngSS = np.random.SeedSequence(entropy)
 			system = hop(neurons=neurons, K=K, L=3, rho=rho, M=M, noise_dif=noise_dif, sigma_type=sigma_type,
-						 quality=quality, rngSS = rngSS)
+						 quality=quality, rngSS = rngSS, mixM = mixM)
 			t0 = time()
 			print(f'Initialized system in {round(t0 - t, 3)} s.')
 			rng_seeds = rngSS.spawn(len_l * len_y)

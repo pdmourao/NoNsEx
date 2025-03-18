@@ -32,7 +32,7 @@ array_dict = {'beta': y_values,
 sys_kwargs = {'neurons': 5000,
               'K': 5,
               'rho': 0.3,
-              'M': 500,
+              'M': 100,
               'mixM': 0,
               'quality': [1, 1, 1],
               'sigma_type': 'mix',
@@ -85,7 +85,7 @@ system1 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **
 
 alt_sys_kwargs = dict(sys_kwargs)
 alt_sys_kwargs['sigma_type'] = 'mix_ex'
-alt_sys_kwargs['mixM'] = 500
+alt_sys_kwargs['mixM'] = 200
 # To use for new inputs
 system2 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **alt_sys_kwargs)
 t0 = time()
@@ -93,9 +93,9 @@ print(f'Initialized system in {round(t0 - t, 3)} s.')
 # print(system1.ex_mags(system1.sigma))
 # print(system2.ex_mags(system2.sigma))
 R = system2.r**2 + (1 - system2.r**2)/system2.M
-print(system1.ex_mags(np.sign(system1.ex_av[0,:3]))*np.sqrt(1+sys_kwargs['rho']))
-print(system1.ex_mags(np.sign(system1.pat[:3]))*np.sqrt(1+sys_kwargs['rho']))
-print(system2.ex_mags(system2.ex_av[0,:3])*np.sqrt((1+sys_kwargs['rho'])/R))
+# print(system1.ex_mags(np.sign(system1.ex_av[0,:3]))*np.sqrt(1+sys_kwargs['rho']))
+# print(system1.ex_mags(np.sign(system1.pat[:3]))*np.sqrt(1+sys_kwargs['rho']))
+# print(system2.ex_mags(system2.ex_av[0,:3])*np.sqrt((1+sys_kwargs['rho'])/R))
 print(np.array_equal(system1.J, system2.J))
 
 # print(system1.ex_mags(system1.sigma))
