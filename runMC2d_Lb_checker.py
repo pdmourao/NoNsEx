@@ -2,7 +2,7 @@ import numpy as np
 from time import time
 from storage import npz_file_finder
 import json
-from MCclasses import HopfieldMC as hop, HopfieldMCLegacy as hopleg
+from MCclasses import HopfieldMC as hop
 
 t0 = time()
 
@@ -14,14 +14,16 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-idx_s = 1
-idx_l = 10
-idx_y = 10
+idx_s = 0
+idx_l = 14
+idx_y = 7
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 
 y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 # y_values = np.linspace(start = 0, stop = 0.2, num = 50)
+
+print(f'Values: lmb = {l_values[idx_l]}, beta = {y_values[idx_y]}')
 
 array_dict = {'beta': y_values,
               'H': 0,
@@ -31,8 +33,8 @@ array_dict = {'beta': y_values,
 
 sys_kwargs = {'neurons': 5000,
               'K': 5,
-              'rho': 0.3,
-              'M': 100,
+              'rho': 0.05,
+              'M': 150,
               'mixM': 0,
               'quality': [1, 1, 1],
               'sigma_type': 'mix',
@@ -40,6 +42,7 @@ sys_kwargs = {'neurons': 5000,
               }
 
 dynamic = 'sequential'
+save_n = False
 av_counter = 5
 
 len_l = len(l_values)
@@ -56,7 +59,7 @@ for item, value in array_dict.items():
         y_values = value
 
 npz_files = npz_file_finder(directory = directory, prints = False, dynamic = dynamic, lmb = l_values,
-                            av_counter = av_counter, **array_dict, **sys_kwargs)
+                            av_counter = av_counter, save_n = save_n, **array_dict, **sys_kwargs)
 
 if len(npz_files) > 1:
     print('Warning: more than 1 experiments found for given inputs.')
@@ -76,7 +79,7 @@ except IndexError or FileNotFoundError:
     mattis_from_file = np.zeros((3, 3))
 
 
-
+print(mattis_from_file)
 
 
 t = time()
@@ -84,8 +87,6 @@ t = time()
 system1 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **sys_kwargs)
 
 alt_sys_kwargs = dict(sys_kwargs)
-alt_sys_kwargs['sigma_type'] = 'mix_ex'
-alt_sys_kwargs['mixM'] = 200
 # To use for new inputs
 system2 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **alt_sys_kwargs)
 t0 = time()
@@ -105,13 +106,21 @@ rng_seeds1 = np.random.SeedSequence(entropy=entropy).spawn(len_l * len_y)
 rng_seeds2 = np.random.SeedSequence(entropy=entropy).spawn(len_l * len_y)
 print(f'Generated seeds for simulate in {round(time() - t0, 3)} s.')
 
-compare_simulations = False
+compare_simulations = True
 
 if compare_simulations:
     array_dict[y_arg] = y_values[idx_y]
+    array_dict['error'] = 0
+    array_dict['max_it'] = 50
+    alt_array_dict = dict(array_dict)
+    alt_array_dict['error'] = 0
+    alt_array_dict['max_it'] = 100
+    print('System 1 running...')
     output1 = system1.simulate(dynamic = dynamic, sim_rngSS = rng_seeds1[idx_l * len_y + idx_y], av_counter = av_counter,
-                               **array_dict)[0]
-    output2 = system2.simulate(dynamic = dynamic, sim_rngSS = rng_seeds2[idx_l * len_y + idx_y], av_counter = av_counter, **array_dict)[0]
+                               prints = True, **array_dict)[0]
+    print('\n System 2 running...')
+    output2 = system2.simulate(dynamic = 'parallel', sim_rngSS = rng_seeds2[idx_l * len_y + idx_y], disable = True, prints = True,
+                               av_counter = 5, **alt_array_dict)[0]
 
     print(f'\nCheck 1: {np.array_equal(np.mean(output1[-av_counter:], axis = 0), mattis_from_file)}')
     print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')

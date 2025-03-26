@@ -5,15 +5,16 @@ from storage import npz_file_finder
 from FPfields import m_in
 import json
 
+l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
+
+y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
+
 directory = 'MC2d_Lb'
-excluded = ['lmb', 'beta', 'H', 'entropy']
+excluded = ['lmb', 'beta']
 
 kwargs = {}
 
-l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
-beta_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
-
-for file in npz_file_finder(directory, **kwargs):
+for file in npz_file_finder(directory, rho = 0.05, **kwargs):
     print('\n' + file)
     file_json = file[:-3] + 'json'
     n_samples = 0

@@ -30,11 +30,12 @@ def npz_file_finder(directory, *args, prints = True, file_spec ='', **kwargs):
                 for key, value in full_kwargs_num.items():
                     if not np.array_equal(data[key], value):
                         verdict = False
-            with open(json_file_os, mode="r", encoding="utf-8") as json_file:
-                data = json.load(json_file)
-                for key, value in kwargs_json.items():
-                    if data[key] != value:
-                        verdict = False
+            if len(kwargs_json) > 0:
+                with open(json_file_os, mode="r", encoding="utf-8") as json_file:
+                    data = json.load(json_file)
+                    for key, value in kwargs_json.items():
+                        if data[key] != value:
+                            verdict = False
             if verdict:
                 file_list.append(npz_file_os)
     if prints:

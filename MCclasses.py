@@ -131,7 +131,7 @@ class HopfieldMC:
 
         # External field
         if h is None:
-            self.h = np.full(shape = (self.L, neurons), fill_value = np.sign(np.sum(state, axis = 0)))
+            self.h = np.sign(np.sum(input_ex_av, axis = 1))
         else:
             self.h = h
 
@@ -177,10 +177,14 @@ class HopfieldMC:
             flips = np.sum(np.abs(state - prev_state))
             mags.append(self.mattis(state))
             ex_mags.append(self.ex_mags(state))
-            if prints and error >= 1:
-                print(f'{int(flips)} on iteration {idx + 1}.')
             if idx + 2 >= av_counter:
-                prev_mags_std = np.std(mags[-av_counter:], axis = 0)
+                prev_mags_std = np.std(mags[-av_counter:], axis=0)
+                if prints and disable and error >= 1:
+                    print(f'{int(flips)} on iteration {idx + 1}.')
+                    print(mags[-1])
+                elif prints and disable and error < 1:
+                    print(f'Error {np.max(prev_mags_std)} on iteration {idx + 1}')
+                    print(mags[-1])
                 if error >= 1 and flips < error:
                     break
                 elif np.max(prev_mags_std) < error < 1:
@@ -220,14 +224,21 @@ def dynamics(beta, J, h, sigma, dynamic = 'sequential', dyn_rng = np.random.defa
     noise = dyn_rng.uniform(low = -1, high = 1, size = (layers, neurons))
 
     if dynamic == 'parallel':
-        new_sigma = np.sign(np.tanh(beta * (np.einsum('kilj,lj->ki', J, sigma) + h)) + noise)
+        if np.isinf(beta):
+            new_sigma = np.sign(np.einsum('kilj,lj->ki', J, sigma) + h)
+        else:
+            new_sigma = np.sign(np.tanh(beta * (np.einsum('kilj,lj->ki', J, sigma) + h)) + noise)
     elif dynamic == 'sequential':
         new_sigma = sigma.copy()
         neuron_sampling = dyn_rng.permutation(range(neurons))
         for idx_N in neuron_sampling:
             layer_sampling = dyn_rng.permutation(range(layers))
             for idx_L in layer_sampling:
-                new_neuron = np.sign(
+                if np.isinf(beta):
+                    new_neuron = np.sign(np.einsum('ki, ki -> ', J[idx_L, idx_N, :, :], new_sigma)
+                                        + h[idx_L, idx_N])
+                else:
+                    new_neuron = np.sign(
                     np.tanh(beta * (np.einsum('ki, ki -> ', J[idx_L,idx_N,:,:], new_sigma)
                                     + h[idx_L, idx_N])) + noise[idx_L, idx_N])
                 new_sigma[idx_L, idx_N] = new_neuron

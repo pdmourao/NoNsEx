@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from MCfuncs import MC2d_Lb, mags_id
 from time import time
+import os
 
 t0 = time()
 
@@ -28,16 +29,16 @@ kwargs = {'neurons': 5000,
           'K': 5,
           'lmb': l_values,
           'beta': y_values,
-          'rho': 0.2,
+          'rho': 0.1,
           'H': 0,
-          'M': 100,
-          'mixM': 100,
+          'M': 150,
+          'mixM': 0,
           'max_it': 20,
           'error': 0.01,
           'av_counter': 5,
           'quality': [1, 1, 1],
           'dynamic': 'sequential',
-          'sigma_type': 'mix_ex',
+          'sigma_type': 'mix',
           'noise_dif': False,
           'save_n': False
           }
@@ -80,11 +81,20 @@ else:
     vec_for_imshow = np.transpose(np.flip(success_av, axis = -1), [0, 2, 1])
     y_min, y_max = y_values[0], y_values[-1]
 
+tr_hessian_mix = np.fromfile(os.path.join('TransitionData',f'HessianMix_L_rho{int(1000*kwargs['rho'])}_H{int(1000*kwargs['H'])}'),np.float64)
+tr_hessian_mix = tr_hessian_mix.reshape((int(np.size(tr_hessian_mix)/2),2))
+
+tr_hessian_dis = np.fromfile(os.path.join('TransitionData', f'HessianDis_L_rho{int(1000*kwargs['rho'])}_H{int(1000*kwargs['H'])}'),np.float64)
+tr_hessian_dis = tr_hessian_dis.reshape((int(np.size(tr_hessian_dis)/2),2))
+
+print(tr_hessian_dis)
+
+
 
 print(f'Calculated success rates in {time() - t} seconds.')
 for idx, state in enumerate(states):
     vec_to_plot = vec_for_imshow[idx]
-    if np.sum(vec_to_plot) > 0:
+    if np.sum(vec_to_plot) > 0 and state in ['3pats', 'mix']:
         c = plt.imshow(vec_for_imshow[idx], cmap = 'Greens', vmin = 0, vmax = 1, aspect='auto', interpolation='nearest',
                        extent = [l_values[0], l_values[-1], y_min, y_max])
 
@@ -94,4 +104,30 @@ for idx, state in enumerate(states):
         plt.ylabel(f'$β$')
         plt.title(f'N = {kwargs['neurons']}, K = {kwargs['K']}, ρ = {kwargs['rho']}, M = {kwargs['M']}, H = {kwargs['H']}\n{all_samples} sample(s), {cutoff} cutoff, {state}')
 
+        plt.scatter(tr_hessian_mix[:,1],tr_hessian_mix[:,0], color = 'black')
+        plt.scatter(tr_hessian_dis[:, 1], tr_hessian_dis[:, 0], color='black')
+
         plt.show()
+
+colordict = {'mix': 'Reds',
+             '3pats': 'Greens'}
+
+for idx, state in enumerate(states):
+    vec_to_plot = vec_for_imshow[idx]
+
+    if np.sum(vec_to_plot) > 0 and state in ['3pats', 'mix']:
+        this_vec = vec_for_imshow[idx]
+        this_vec[this_vec == 0] = None
+        c = plt.imshow(this_vec, cmap = colordict[state], vmin = 0, vmax = 1, aspect='auto', interpolation='nearest',
+                       extent = [l_values[0], l_values[-1], y_min, y_max])
+
+        plt.colorbar(c)
+
+plt.xlabel('$λ$')
+plt.ylabel(f'$β$')
+plt.title(f'N = {kwargs['neurons']}, K = {kwargs['K']}, ρ = {kwargs['rho']}, M = {kwargs['M']}, H = {kwargs['H']}\n{all_samples} sample(s), {cutoff} cutoff')
+
+plt.scatter(tr_hessian_mix[:,1],tr_hessian_mix[:,0], color = 'black')
+plt.scatter(tr_hessian_dis[:, 1], tr_hessian_dis[:, 0], color='black')
+
+plt.show()

@@ -29,7 +29,7 @@ for file in npz_file_finder('FP1d', file_spec='NoNsEx_', arr_0 =m_in() + pert, a
 							alpha = 0, rho = rho_values, beta = 10):
     with np.load(file) as data:
         for idx_det, tr_det in enumerate(tr_dets):
-            idx_tr = fp.FindTransition(data['m'], tr_det=tr_det)
+            idx_tr = fp.FindTransitionFromVec(data['m'], tr_det=tr_det)
             if idx_tr > 0:
                 tr_arrays_rho[idx_det].append([data['rho'][idx_tr], data['lmb']])
 
@@ -37,7 +37,7 @@ for file in npz_file_finder('FP1d', file_spec='NoNsEx_', arr_0 =m_in() + pert, a
 							alpha = 0, lmb = lmb_values, beta = 10):
     with np.load(file) as data:
         for idx_det, tr_det in enumerate(tr_dets):
-            idx_tr = fp.FindTransition(data['m'], tr_det=tr_det)
+            idx_tr = fp.FindTransitionFromVec(data['m'], tr_det=tr_det)
             if idx_tr > 0:
                 tr_arrays_lmb[idx_det].append([data['rho'], data['lmb'][idx_tr]])
 

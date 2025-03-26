@@ -3,14 +3,18 @@ import numpy as np
 from FPfields import NoNsEx, m_in, initial_q
 from matplotlib import pyplot as plt
 
-samples = 6
+samples = 10
 use_files = True
 field = NoNsEx
 eps = 1e-10
 
-kwargs = {'lmb': 0.2, 'rho': 0.1, 'beta': 1/np.linspace(0.01, 1, 100, endpoint = True), 'alpha': 0, 'H': 0, 'max_it': 1000, 'ibound': 1e-20, 'error': 1e-15}
+kwargs = {'lmb': np.linspace(0, 0.5, 100, endpoint = False), 'rho': 0.2, 'beta': 10, 'alpha': 0, 'H': 0, 'max_it': 1000, 'ibound': 1e-20, 'error': 1e-15}
 
-args = m_in(4/10), initial_q
+e = 0.4
+other_initial = np.array([[1-e,   e, e],
+                          [1-e,   e, e],
+                          [1-e,   e, e]])
+args = other_initial, initial_q
 print('Initial arguments:')
 print(args)
 
@@ -78,7 +82,7 @@ for idx in range(samples):
     det_list = [lambda x: fp.disentangle_det(x, threshold =cutoff)]
 
     for func in det_list:
-        tr_idx = fp.FindTransition(tr_det = func, vec_m = m)
+        tr_idx = fp.FindTransitionFromVec(tr_det = func, vec_m = m)
         if tr_idx > 0:
             idx = tr_idx - 1
             plt.vlines(x=x_values[idx], ymin=0, ymax=m[idx, 1, 1], linestyle='dashed', color='black')

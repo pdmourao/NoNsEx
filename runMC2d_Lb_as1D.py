@@ -116,7 +116,7 @@ if draw_FP:
 
     m, q, n = fp.solve(field, *args, use_files = True, disable = False, **kwargs_FP, **kwargs)
 
-    idx_tr = fp.FindTransition(vec_m = m, tr_det = fp.tr_det_NoNsEx)
+    idx_tr = fp.FindTransitionFromVec(vec_m = m, tr_det = fp.tr_det_NoNsEx)
 
     plt.plot(x_values[:idx_tr], m[:idx_tr, 0, 0], color=colors[-1], linestyle = 'dashed')
     [plt.plot(x_values[idx_tr:], m[idx_tr:, i, i], color = colors[i], linestyle = 'dashed') for i in range(3)]
