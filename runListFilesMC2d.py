@@ -10,10 +10,8 @@ excluded = ['beta', 'lmb']
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 beta_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 
-directory = 'MC2d_Lb'
-excluded = ['lmb', 'beta']
 
-for file in npz_file_finder(directory):
+for file in npz_file_finder(directory, dynamic = 'parallel', H=0):
     print('\n' + file)
     file_json = file[:-3] + 'json'
     n_samples = 0

@@ -176,15 +176,15 @@ class HopfieldMC:
             state = dynamics(beta = beta, J = J, h = H * self.h, sigma = state, dynamic = dynamic, dyn_rng = sim_rng)
             flips = np.sum(np.abs(state - prev_state))
             mags.append(self.mattis(state))
+            if prints and disable:
+                print(self.mattis(state))
             ex_mags.append(self.ex_mags(state))
             if idx + 2 >= av_counter:
                 prev_mags_std = np.std(mags[-av_counter:], axis=0)
                 if prints and disable and error >= 1:
                     print(f'{int(flips)} on iteration {idx + 1}.')
-                    print(mags[-1])
                 elif prints and disable and error < 1:
                     print(f'Error {np.max(prev_mags_std)} on iteration {idx + 1}')
-                    print(mags[-1])
                 if error >= 1 and flips < error:
                     break
                 elif np.max(prev_mags_std) < error < 1:

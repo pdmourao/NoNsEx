@@ -15,13 +15,18 @@ t0 = time()
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
 idx_s = 0
-idx_l = 14
-idx_y = 7
+x = 0.28
+y = 14.5
+
+
+
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
-
 y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 # y_values = np.linspace(start = 0, stop = 0.2, num = 50)
+
+idx_l = (np.abs(l_values - x)).argmin()
+idx_y = (np.abs(y_values - y)).argmin()
 
 print(f'Values: lmb = {l_values[idx_l]}, beta = {y_values[idx_y]}')
 
@@ -91,13 +96,8 @@ alt_sys_kwargs = dict(sys_kwargs)
 system2 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **alt_sys_kwargs)
 t0 = time()
 print(f'Initialized system in {round(t0 - t, 3)} s.')
-# print(system1.ex_mags(system1.sigma))
-# print(system2.ex_mags(system2.sigma))
-R = system2.r**2 + (1 - system2.r**2)/system2.M
-# print(system1.ex_mags(np.sign(system1.ex_av[0,:3]))*np.sqrt(1+sys_kwargs['rho']))
-# print(system1.ex_mags(np.sign(system1.pat[:3]))*np.sqrt(1+sys_kwargs['rho']))
-# print(system2.ex_mags(system2.ex_av[0,:3])*np.sqrt((1+sys_kwargs['rho'])/R))
-print(np.array_equal(system1.J, system2.J))
+
+print(f'J matrices check: {np.array_equal(system1.J, system2.J)}')
 
 # print(system1.ex_mags(system1.sigma))
 # print(system2.ex_mags(system2.sigma))
@@ -110,21 +110,28 @@ compare_simulations = True
 
 if compare_simulations:
     array_dict[y_arg] = y_values[idx_y]
-    array_dict['error'] = 0
-    array_dict['max_it'] = 50
+
     alt_array_dict = dict(array_dict)
     alt_array_dict['error'] = 0
     alt_array_dict['max_it'] = 100
+
+    time0 = time()
     print('System 1 running...')
     output1 = system1.simulate(dynamic = dynamic, sim_rngSS = rng_seeds1[idx_l * len_y + idx_y], av_counter = av_counter,
                                prints = True, **array_dict)[0]
+    time1 = time()-time0
+    time0 = time()
     print('\n System 2 running...')
     output2 = system2.simulate(dynamic = 'parallel', sim_rngSS = rng_seeds2[idx_l * len_y + idx_y], disable = True, prints = True,
-                               av_counter = 5, **alt_array_dict)[0]
-
+                               av_counter = 3, **alt_array_dict)[0]
+    time2 = time()-time0
     print(f'\nCheck 1: {np.array_equal(np.mean(output1[-av_counter:], axis = 0), mattis_from_file)}')
-    print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')
-
-
+    # print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')
+    print(f'Fast noise checker: {np.array_equal(np.random.default_rng(rng_seeds1[0]).random(10),
+                                                   np.random.default_rng(rng_seeds2[0]).random(10))}')
+    print(f'Time per iteration (system 1): {time1/(len(output1)-1)}')
+    print(f'Time per iteration (system 2): {time2 / (len(output2) - 1)}')
+    print(len(output1))
+    print(len(output2))
 
 

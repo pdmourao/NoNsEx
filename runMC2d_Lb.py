@@ -14,13 +14,11 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 5
+samples = 10
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
-
-y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
+y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = True)[::-1]
 # y_values = np.linspace(start = 0, stop = 0.2, num = 50)
-
 
 flip_yaxis = True
 disable = False
@@ -29,15 +27,15 @@ kwargs = {'neurons': 5000,
           'K': 5,
           'lmb': l_values,
           'beta': y_values,
-          'rho': 0.1,
+          'rho': 0.05,
           'H': 0,
           'M': 150,
           'mixM': 0,
-          'max_it': 20,
-          'error': 0.01,
-          'av_counter': 5,
+          'max_it': 30,
+          'error': 0.002,
+          'av_counter': 3,
           'quality': [1, 1, 1],
-          'dynamic': 'sequential',
+          'dynamic': 'parallel',
           'sigma_type': 'mix',
           'noise_dif': False,
           'save_n': False
@@ -81,13 +79,17 @@ else:
     vec_for_imshow = np.transpose(np.flip(success_av, axis = -1), [0, 2, 1])
     y_min, y_max = y_values[0], y_values[-1]
 
-tr_hessian_mix = np.fromfile(os.path.join('TransitionData',f'HessianMix_L_rho{int(1000*kwargs['rho'])}_H{int(1000*kwargs['H'])}'),np.float64)
-tr_hessian_mix = tr_hessian_mix.reshape((int(np.size(tr_hessian_mix)/2),2))
+try:
+    tr_hessian_mix = np.fromfile(os.path.join('TransitionData',f'HessianMix_L_rho{int(1000*kwargs['rho'])}_H{int(1000*kwargs['H'])}'),np.float64)
+    tr_hessian_mix = tr_hessian_mix.reshape((int(np.size(tr_hessian_mix)/2),2))
 
-tr_hessian_dis = np.fromfile(os.path.join('TransitionData', f'HessianDis_L_rho{int(1000*kwargs['rho'])}_H{int(1000*kwargs['H'])}'),np.float64)
-tr_hessian_dis = tr_hessian_dis.reshape((int(np.size(tr_hessian_dis)/2),2))
+    tr_hessian_dis = np.fromfile(os.path.join('TransitionData', f'HessianDis_L_rho{int(1000*kwargs['rho'])}_H{int(1000*kwargs['H'])}'),np.float64)
+    tr_hessian_dis = tr_hessian_dis.reshape((int(np.size(tr_hessian_dis)/2),2))
 
-print(tr_hessian_dis)
+    print(tr_hessian_dis)
+except FileNotFoundError:
+    print('No Hessian transitions given.')
+    pass
 
 
 
@@ -104,8 +106,11 @@ for idx, state in enumerate(states):
         plt.ylabel(f'$β$')
         plt.title(f'N = {kwargs['neurons']}, K = {kwargs['K']}, ρ = {kwargs['rho']}, M = {kwargs['M']}, H = {kwargs['H']}\n{all_samples} sample(s), {cutoff} cutoff, {state}')
 
-        plt.scatter(tr_hessian_mix[:,1],tr_hessian_mix[:,0], color = 'black')
-        plt.scatter(tr_hessian_dis[:, 1], tr_hessian_dis[:, 0], color='black')
+        try:
+            plt.scatter(tr_hessian_mix[:,1],tr_hessian_mix[:,0], color = 'black')
+            plt.scatter(tr_hessian_dis[:, 1], tr_hessian_dis[:, 0], color='black')
+        except NameError:
+            pass
 
         plt.show()
 
@@ -127,7 +132,10 @@ plt.xlabel('$λ$')
 plt.ylabel(f'$β$')
 plt.title(f'N = {kwargs['neurons']}, K = {kwargs['K']}, ρ = {kwargs['rho']}, M = {kwargs['M']}, H = {kwargs['H']}\n{all_samples} sample(s), {cutoff} cutoff')
 
-plt.scatter(tr_hessian_mix[:,1],tr_hessian_mix[:,0], color = 'black')
-plt.scatter(tr_hessian_dis[:, 1], tr_hessian_dis[:, 0], color='black')
+try:
+    plt.scatter(tr_hessian_mix[:,1],tr_hessian_mix[:,0], color = 'black')
+    plt.scatter(tr_hessian_dis[:, 1], tr_hessian_dis[:, 0], color='black')
+except NameError:
+    pass
 
 plt.show()

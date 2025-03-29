@@ -87,12 +87,12 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 			if samples_present > 0:
 				n_samples = samples_present
 			else:
-				raise Exception('Provide higher number of samples to compute.')
+				raise Exception('No samples present. Compute some first.')
 
 	except IndexError:
 		print('No experiments found for given inputs. Starting one.')
 		if n_samples == 0:
-			raise Exception('Provide higher number of samples to compute.')
+			raise Exception('No complete samples present. Compute some first.')
 		file_npz = os.path.join(directory, f'MC2dF_{x_arg}{y_arg}{len_x * len_y}_{int(time())}.npz')
 		entropy_from_os = np.random.SeedSequence().entropy
 		with open(f'{file_npz[:-3]}json', mode="w", encoding="utf-8") as json_file:
@@ -229,12 +229,12 @@ def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, mixM, lmb, dynamic
 			if samples_present > 0:
 				n_samples = samples_present
 			else:
-				raise Exception('Provide higher number of samples to compute.')
+				raise Exception('No samples present. Compute some first.')
 
 	except IndexError:
 		print('No experiments found for given inputs. Starting one.')
 		if n_samples == 0:
-			raise Exception('Provide higher number of samples to compute.')
+			raise Exception('No complete samples present. Compute some first.')
 		file_npz = os.path.join(directory, f'MC2d_lmb{y_arg}{len_l*len_y}_{int(time())}.npz')
 		entropy_from_os = np.random.SeedSequence().entropy
 		with open(f'{file_npz[:-3]}json', mode="w", encoding="utf-8") as json_file:
