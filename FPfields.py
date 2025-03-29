@@ -170,7 +170,6 @@ def NoNsEx(m, q, n = None, *, beta, lmb, rho, alpha, H, errorbound = 0, p_reg = 
     if n is None:
         n = m/(1+rho)
 
-
     gn = g(lmb) @ n
 
     sd_rho = np.sqrt(rho) * np.linalg.norm(gn, axis = 1)

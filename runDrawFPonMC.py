@@ -102,7 +102,7 @@ for beta in beta_values_FP:
                                 rho=kwargs['rho'], H=kwargs['H'], alpha=alpha, beta = beta, error = 1e-10):
         with np.load(file) as data:
             for idx_det, tr_det in enumerate(tr_dets):
-                idx_tr = fp.FindTransition(data['m'], tr_det=tr_det)
+                idx_tr = fp.FindTransitionFromVec(data['m'], tr_det=tr_det)
                 if idx_tr > 0:
                     tr_arrays[idx_det].append([data['lmb'][idx_tr], data['beta']])
 
@@ -152,7 +152,7 @@ for beta in beta_values_FP:
                                 rho=kwargs['rho'], H=kwargs['H'], alpha=alpha, beta = beta, error = 1e-10):
         with np.load(file) as data:
             for idx_det, tr_det in enumerate(tr_dets):
-                idx_tr = fp.FindTransition(data['m'], tr_det=tr_det)
+                idx_tr = fp.FindTransitionFromVec(data['m'], tr_det=tr_det)
                 if idx_tr > 0:
                     tr_arrays[idx_det].append([data['lmb'][idx_tr], data['beta']])
 

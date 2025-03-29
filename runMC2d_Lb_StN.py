@@ -13,24 +13,25 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 5
+samples = 1
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 
 # y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
-y_values = np.linspace(start = 0, stop = 0.2, num = 50)
+y_values = np.linspace(start = 0, stop = 2, num = 50)
 
 
 flip_yaxis = False
 disable = False
 
 kwargs = {'neurons': 5000,
-          'K': 5,
+          'K': 50,
           'lmb': l_values,
           'beta': np.inf,
-          'rho': 0,
+          'rho': 0.1,
           'H': y_values,
-          'M': 1,
+          'M': 100,
+          'mixM': 0,
           'max_it': 20,
           'error': 1,
           'av_counter': 1,
@@ -57,7 +58,7 @@ all_samples = len(m_array_trials)
 success_array = np.zeros((len(states), all_samples, len_l, len_y))
 
 print('\nCalculating success rates...')
-cutoff = 0.8
+cutoff = 0.95
 cutoff_mix = 0.1
 
 t = time()
@@ -76,21 +77,21 @@ if flip_yaxis:
     vec_for_imshow = np.transpose(success_av, [0, 2, 1])
     y_min, y_max = y_values[-1], y_values[0]
 else:
-    vec_for_imshow = np.transpose(np.flip(success_av, axis = -1), [0, 2, 1])
+    vec_for_imshow = np.flip(np.transpose(success_av, [0, 2, 1]), axis = 1)
     y_min, y_max = y_values[0], y_values[-1]
 
 
 print(f'Calculated success rates in {time() - t} seconds.')
 for idx, state in enumerate(states):
     vec_to_plot = vec_for_imshow[idx]
-    if np.sum(vec_to_plot) > 0:
+    if np.sum(vec_to_plot) > 0 and state == '3pats':
         c = plt.imshow(vec_for_imshow[idx], cmap = 'Greens', vmin = 0, vmax = 1, aspect='auto', interpolation='nearest',
                        extent = [l_values[0], l_values[-1], y_min, y_max])
 
         plt.colorbar(c)
 
         plt.xlabel('$λ$')
-        plt.ylabel(f'$β$')
-        plt.title(f'N = {kwargs['neurons']}, K = {kwargs['K']}, ρ = {kwargs['rho']}, M = {kwargs['M']}, H = {kwargs['H']}\n{all_samples} sample(s), {cutoff} cutoff, {state}')
+        plt.ylabel(f'$H$')
+        plt.title(f'N = {kwargs['neurons']}, K = {kwargs['K']}, ρ = {kwargs['rho']}, M = {kwargs['M']}\n{all_samples} sample(s), {cutoff} cutoff, {state}')
 
         plt.show()

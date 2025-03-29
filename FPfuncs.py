@@ -5,10 +5,11 @@ import os
 from storage import npz_file_finder
 from copy import deepcopy
 
-def iterator(*args, max_it, field, not_all_neg = [], error = 0, order = None, ibound = 0, min_it = 1, pbar = None, **kwargs):
+def iterator(*args, max_it, field, not_all_neg = [], dif_length = 0, error = 0, order = None, ibound = 0, min_it = 1, pbar = None, **kwargs):
     iter_list = [args]
 
     it = 0
+    dif_list = []
 
     for it in range(max_it):
         old_iter = iter_list[-1]
@@ -20,24 +21,30 @@ def iterator(*args, max_it, field, not_all_neg = [], error = 0, order = None, ib
         # if the difference is not smaller than error, add it to history, otherwise break
 
         changeable_iter = list(new_iter)
+        difs = [np.linalg.norm(new_iter[idx] - old_iter[idx], ord=order) for idx in range(len(old_iter))]
+        # this part is just if we want to avoid results oscillating between something and its symmetric
+        # this is only checked for the list of indices not_all_neg
+        for reversable_idx in not_all_neg:
+            reversed_dif = np.linalg.norm(new_iter[reversable_idx] + old_iter[reversable_idx], ord=order)
+            if reversed_dif < difs[reversable_idx]:
+                difs[reversable_idx] = reversed_dif
+                changeable_iter[reversable_idx] = - changeable_iter[reversable_idx]
 
-        if error > 0:
-            difs = [np.linalg.norm(new_iter[idx] - old_iter[idx], ord = order) for idx in range(len(args))]
-
-            # this part is just if we want to avoid results oscillating between something and its symmetric
-            # this is only checked for the list of indices not_all_neg
-            for reversable_idx in not_all_neg:
-                reversed_dif = np.linalg.norm(new_iter[reversable_idx] + old_iter[reversable_idx], ord = order)
-                if reversed_dif < difs[reversable_idx]:
-                    difs[reversable_idx] = reversed_dif
-                    changeable_iter[reversable_idx] = - changeable_iter[reversable_idx]
-            if it >= min_it and sum(difs) < error:
-                break
+        if it >= min_it and sum(difs) < error:
+            break
 
         iter_list.append(tuple(changeable_iter))
+        dif_list.append(difs[0])
+
+    if dif_length > 0:
+        output_difs = np.array(dif_list)[-dif_length:]
+    else:
+        output_difs = len(dif_list)
+
     if pbar is not None:
         pbar.update(1)
-    return it, iter_list
+
+    return output_difs, iter_list
 
 
 def solve(field, *args, rand = None, use_files = False, disable = False, **kwargs):
@@ -78,26 +85,20 @@ def solve(field, *args, rand = None, use_files = False, disable = False, **kwarg
         except IndexError:
             pass
 
-    if x_arg is None:
-        t = time()
+    t = time()
+    values_list = []
+    for idx, value in enumerate(tqdm(x_values, disable=disable)):
+        t0 = time()
+        kwargs[x_arg] = value
         maxed_it, output = iterator(*new_args, field=field, **kwargs)
-        values_list = output[1:]
-        print(f'0D Iterator ran in {round(time() - t, 2)} seconds')
-    else:
-        t = time()
-        values_list = []
-        for idx, value in enumerate(tqdm(x_values, disable=disable)):
-            t0 = time()
-            kwargs[x_arg] = value
-            maxed_it, output = iterator(*new_args, field=field, **kwargs)
-            if disable:
-                print(f'{x_arg} = {value} solved in {round(time() - t0)} seconds.')
-                print(f'Ran to {maxed_it+1} iterations.')
-                print('Output:')
-                print(output[-1])
-            values_list.append(output[-1])
-        print(f'1D Iterator ran in {round((time() - t)/60, 2)} minutes')
-        kwargs[x_arg] = x_values
+        if disable:
+            print(f'{x_arg} = {value} solved in {round(time() - t0)} seconds.')
+            print(f'Ran to {maxed_it+1} iterations.')
+            print('Output:')
+            print(output[-1])
+        values_list.append(output[-1])
+    print(f'1D Iterator ran in {round((time() - t)/60, 2)} minutes')
+    kwargs[x_arg] = x_values
     output_tuple = tuple(map(np.array, zip(*values_list)))
     if use_files and x_arg is not None:
         output_args = ('m', 'q', 'n')
@@ -108,7 +109,7 @@ def solve(field, *args, rand = None, use_files = False, disable = False, **kwarg
     return output_tuple
 
 
-def FindTransition(vec_m, tr_det, **kwargs):
+def FindTransitionFromVec(vec_m, tr_det, **kwargs):
 
     tr_idx = None
 
@@ -117,6 +118,9 @@ def FindTransition(vec_m, tr_det, **kwargs):
             tr_idx = idx
             break
     return tr_idx
+
+def FindTransitionL(field, ):
+    return None
 
 
 # Example of a transition detector

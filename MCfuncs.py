@@ -37,10 +37,10 @@ from npy_append_array import NpyAppendArray
 def gJprod(g, J):
 	return np.transpose(np.transpose(J, [1, 3, 0, 2]) * g, [2, 0, 3, 1])
 
-def MCHop_InAndOut(neurons, K, rho, M, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
-				   dynamic, L = 3, h = None, rngSS = np.random.SeedSequence(), prints = True, cut = False):
+def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
+				   dynamic, L = 3, h = None, rngSS = np.random.SeedSequence(), prints = False, cut = False):
 	t = time()
-	system = hop(neurons= neurons, L = L, K= K, rho = rho, M = M, lmb = lmb, sigma_type = sigma_type, quality= quality,
+	system = hop(neurons= neurons, L = L, K= K, rho = rho, M = M, mixM = mixM, lmb = lmb, sigma_type = sigma_type, quality= quality,
 				 noise_dif = noise_dif, h = h, rngSS = rngSS)
 	t = time()- t
 	if prints:
@@ -49,7 +49,7 @@ def MCHop_InAndOut(neurons, K, rho, M, lmb, sigma_type, quality, noise_dif, beta
 	sim_rngSS = rngSS.spawn(1)[0]
 
 	return system.simulate(beta = beta, H = H, max_it = max_it, error = error, av_counter = av_counter,
-						   dynamic = dynamic, cut = cut, disable = prints, sim_rngSS = sim_rngSS)
+						   dynamic = dynamic, cut = cut, disable = True, sim_rngSS = sim_rngSS)
 
 def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_type, disable = False, **kwargs):
 
@@ -60,11 +60,13 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 	json_dict = {'dynamic': dynamic,
 				 'noise_dif': noise_dif,
 				 'sigma_type': sigma_type,
-				 'save_m': save_n}
+				 'save_n': save_n}
+
+	inputs_num = {**kwargs, x_arg: x_values, y_arg: y_values}
 
 	inputs = {**json_dict, **kwargs, x_arg: x_values, y_arg: y_values}
 
-	npz_files = npz_file_finder(directory = directory, prints = False, **json_dict, **inputs)
+	npz_files = npz_file_finder(directory = directory, prints = False, **inputs)
 	if len(npz_files) > 1:
 		print('Warning: more than 1 experiments found for given inputs.')
 
@@ -75,7 +77,7 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 			entropy_from_os = int(data['entropy'])
 		print('File found. Restarting.')
 		samples_present = len([file for file in os.listdir(directory) if
-							   file_npz[:-4] in os.path.join(directory, file) and file[-5] == 'm.npy'])
+							   file_npz[:-4] in os.path.join(directory, file) and file[-5:] == 'm.npy'])
 		print(f'There are {samples_present} sample(s) present')
 		if n_samples == 0:
 			if samples_present > 0:
@@ -96,7 +98,7 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 		with open(f'{file_npz[:-3]}json', mode="w", encoding="utf-8") as json_file:
 			json_dict['entropy'] = str(entropy_from_os)
 			json.dump(json_dict, json_file)
-		np.savez(file_npz, x_arg = x_values, y_arg = y_values, **kwargs)
+		np.savez(file_npz, **inputs_num)
 
 	mattis = np.zeros((n_samples, len_x, len_y, 3, 3))
 	mattis_ex = np.zeros((n_samples, len_x, len_y, 3, 3))
@@ -104,6 +106,8 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 	t0 = time()
 	rng_seeds = np.random.SeedSequence(entropy_from_os).spawn(len_x * len_y)
 	print(f'Generated seeds for simulate in {round(time() - t0, 3)} s.')
+
+	inputs.pop('save_n')
 
 	for idx_s in range(n_samples):
 		t = time()
@@ -173,7 +177,7 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 	return mattis, mattis_ex
 
 
-def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, noise_dif, sigma_type, quality, disable = False,
+def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, mixM, lmb, dynamic, noise_dif, sigma_type, quality, disable = False,
 			**sim_scalar_kwargs):
 
 	directory = directory
@@ -187,6 +191,7 @@ def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, nois
 				'K': K,
 				'rho': rho,
 				'M': M,
+				'mixM': mixM,
 				'lmb': lmb,
 				'quality': quality}
 
@@ -214,7 +219,7 @@ def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, nois
 			data = json.load(json_file)
 			entropy_from_os = int(data['entropy'])
 		print('File found. Restarting.')
-		samples_present = len([file for file in os.listdir(directory) if file_npz[:-4] in os.path.join(directory, file) and file[-5] == 'm.npy'])
+		samples_present = len([file for file in os.listdir(directory) if file_npz[:-4] in os.path.join(directory, file) and file[-5:] == 'm.npy'])
 		print(f'There are {samples_present} sample(s) present')
 		if n_samples == 0:
 			if samples_present > 0:
@@ -268,7 +273,7 @@ def MC2d_Lb(directory, save_n, n_samples, neurons, K, rho, M, lmb, dynamic, nois
 				print(f'Sample incomplete ({len(mattis_flat)}/{len_l*len_y})')
 			rngSS = np.random.SeedSequence(entropy)
 			system = hop(neurons=neurons, K=K, L=3, rho=rho, M=M, noise_dif=noise_dif, sigma_type=sigma_type,
-						 quality=quality, rngSS = rngSS)
+						 quality=quality, rngSS = rngSS, mixM = mixM)
 			t0 = time()
 			print(f'Initialized system in {round(t0 - t, 3)} s.')
 			rng_seeds = rngSS.spawn(len_l * len_y)

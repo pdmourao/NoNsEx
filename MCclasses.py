@@ -36,7 +36,7 @@ from tqdm import tqdm
 
 class HopfieldMC:
 
-    def __init__(self, neurons, K, rho, M, sigma_type, quality, noise_dif, L = 3, blur = None, h = None,
+    def __init__(self, neurons, K, rho, M, mixM, sigma_type, quality, noise_dif, L = 3, blur = None, h = None,
                  rngSS = np.random.SeedSequence(), compute_J = True, lmb = None):
         t = time()
         self.N = neurons
@@ -67,16 +67,20 @@ class HopfieldMC:
             # Define Chi vector
             # Take shape (L, M, K, neurons) for simpler multiplication below
             t0 = time()
+            if 'ex' in sigma_type:
+                sizeM = max(self.M, mixM)
+            else:
+                sizeM = self.M
             if noise_dif:
                 self.blur = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
-                                        size=(self.L, self.M, self.K, self.N))
+                                        size=(self.L, sizeM, self.K, self.N))
             else:
-                self.blur = np.full(shape = (self.L, self.M, self.K, self.N), fill_value = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
-                                             size=(self.M, self.K, self.N)))
+                self.blur = np.full(shape = (self.L, sizeM, self.K, self.N), fill_value = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
+                                             size=(sizeM, self.K, self.N)))
         else:
             self.blur = blur
 
-        self.ex = self.blur * self.pat
+        self.ex = self.blur[:,:self.M] * self.pat
         self.ex_av = np.average(self.ex, axis=1)
 
         if compute_J:
@@ -94,25 +98,40 @@ class HopfieldMC:
         else:
             self.J = None
 
+        assert sigma_type in ['mix', 'mix_ex', 'dis', 'dis_ex'], 'Non valid sigma_type.'
+
+        if mixM == 0:
+            input_ex_av = np.full(shape = (self.L, self.L, self.N), fill_value = self.pat[:self.L])
+        else:
+            if 'ex' in sigma_type:
+                input_blur = self.blur[:, :mixM, :self.L]
+
+            else:
+                input_blur = np.full(shape=(self.L, mixM, self.L, self.N),
+                                     fill_value=rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
+                                                           size=(mixM, self.L, self.N)))
+
+            input_ex = input_blur * self.pat[:self.L]
+            input_ex_av = np.average(input_ex, axis = 1)
+
         # Initial state
-        self.sigma = np.zeros(shape=(self.L, self.N))
         state = np.zeros(shape=(self.L, self.N))
-        assert len(quality) == self.L, 'quality input does not match number of layers'
+        state_blur = np.zeros(shape=(len(quality), self.N))
 
-        for idx in range(self.L):
-            state[idx] = self.pat[idx] * rng.choice([-1, 1], p=[(1 - quality[idx]) / 2, (1 + quality[idx]) / 2], size=self.N)
+        for idx in range(len(quality)):
+            state_blur[idx] = rng.choice([-1, 1], p=[(1 - quality[idx]) / 2, (1 + quality[idx]) / 2], size=self.N)
 
-        if sigma_type == 'mix':
-            self.sigma = np.full((self.L, self.N), np.sign(np.sum(state, axis=0)))
-        elif sigma_type == 'dis':
-            self.sigma = state
-        elif sigma_type == 'mixex':
-            self.sigma = np.sign(np.sum(self.ex[:,0,:,:], axis=1))
-            print(np.shape(self.sigma))
+        if 'dis' in sigma_type:
+            for layer in range(self.L):
+                state[layer] = np.sign(input_ex_av[layer, layer])
+        elif 'mix' in sigma_type:
+            state = np.sign(np.sum(input_ex_av, axis = 1))
+        self.input = input_ex_av
+        self.sigma = state*state_blur
 
         # External field
         if h is None:
-            self.h = np.full(shape = (self.L, neurons), fill_value = np.sign(np.sum(state, axis = 0)))
+            self.h = np.sign(np.sum(input_ex_av, axis = 1))
         else:
             self.h = h
 
@@ -135,7 +154,9 @@ class HopfieldMC:
     # parallel is optional: if True, it runs parallel dynamics
 
     # It returns the full history of states
-    def simulate(self, beta, H, max_it, error, av_counter, dynamic, J = None, disable = True, prints = False, cut = False, sim_rngSS = None):
+    def simulate(self, beta, H, max_it, error, av_counter, dynamic, J = None, disable = True, prints = False,
+                 cut = False, sim_rngSS = None):
+
         t = time()
 
         sim_rng = np.random.default_rng(sim_rngSS)
@@ -156,10 +177,14 @@ class HopfieldMC:
             flips = np.sum(np.abs(state - prev_state))
             mags.append(self.mattis(state))
             ex_mags.append(self.ex_mags(state))
-            if prints and error >= 1:
-                print(f'{int(flips)} on iteration {idx + 1}.')
             if idx + 2 >= av_counter:
-                prev_mags_std = np.std(mags[-av_counter:], axis = 0)
+                prev_mags_std = np.std(mags[-av_counter:], axis=0)
+                if prints and disable and error >= 1:
+                    print(f'{int(flips)} on iteration {idx + 1}.')
+                    print(mags[-1])
+                elif prints and disable and error < 1:
+                    print(f'Error {np.max(prev_mags_std)} on iteration {idx + 1}')
+                    print(mags[-1])
                 if error >= 1 and flips < error:
                     break
                 elif np.max(prev_mags_std) < error < 1:
@@ -199,14 +224,21 @@ def dynamics(beta, J, h, sigma, dynamic = 'sequential', dyn_rng = np.random.defa
     noise = dyn_rng.uniform(low = -1, high = 1, size = (layers, neurons))
 
     if dynamic == 'parallel':
-        new_sigma = np.sign(np.tanh(beta * (np.einsum('kilj,lj->ki', J, sigma) + h)) + noise)
+        if np.isinf(beta):
+            new_sigma = np.sign(np.einsum('kilj,lj->ki', J, sigma) + h)
+        else:
+            new_sigma = np.sign(np.tanh(beta * (np.einsum('kilj,lj->ki', J, sigma) + h)) + noise)
     elif dynamic == 'sequential':
         new_sigma = sigma.copy()
         neuron_sampling = dyn_rng.permutation(range(neurons))
         for idx_N in neuron_sampling:
             layer_sampling = dyn_rng.permutation(range(layers))
             for idx_L in layer_sampling:
-                new_neuron = np.sign(
+                if np.isinf(beta):
+                    new_neuron = np.sign(np.einsum('ki, ki -> ', J[idx_L, idx_N, :, :], new_sigma)
+                                        + h[idx_L, idx_N])
+                else:
+                    new_neuron = np.sign(
                     np.tanh(beta * (np.einsum('ki, ki -> ', J[idx_L,idx_N,:,:], new_sigma)
                                     + h[idx_L, idx_N])) + noise[idx_L, idx_N])
                 new_sigma[idx_L, idx_N] = new_neuron
@@ -214,95 +246,3 @@ def dynamics(beta, J, h, sigma, dynamic = 'sequential', dyn_rng = np.random.defa
         raise Exception('No dynamic update rule given.')
 
     return new_sigma
-
-
-class HopfieldMC_rho:
-
-    def __init__(self, N, L, pat, rho, M, blur = None, sigma = None):
-        self.N = N
-
-        if isinstance(pat, int):
-            self.pat = np.random.choice([-1, 1], size = (pat, N))
-            self.K = pat
-        else:
-            self.pat = pat
-            self.K = len(pat)
-
-        self.rho, self.M = rho, M
-
-        self.r = 1/np.sqrt(1+self.rho * self.M)
-
-        if blur is None:
-            self.blur = np.random.choice([-1, 1], p = [(1-self.r)/2, (1+self.r)/2], size = (self.M, self.K, N))
-        else:
-            self.blur = blur
-
-        self.ex = self.blur*self.pat
-        avex = np.average(self.ex, axis = 0)
-        R = self.r**2 + ((1-self.r**2)/self.M)
-
-        if sigma is None:
-            self.sigma = np.sign(np.sum(self.pat[:L], axis=0))
-        else:
-            self.sigma = sigma
-
-        self.J = (1/(N * R)) * np.einsum('ki,kj->ij', avex, avex)
-        for i in range(self.N):
-            self.J[i, i] = 0
-        if sigma is None:
-            self.sigma = np.sign(np.sum(self.pat[:L], axis = 0))
-        else:
-            self.sigma = sigma
-
-        J_terms = (1 / (N * R)) * np.einsum('ki,kj->kij', avex, avex)
-        for k in range(self.K):
-            for i in range(self.N):
-                pass
-                # J_terms[k, i, i] = 0
-
-        print(R)
-        ex_norm = np.array([(1/N)*np.dot(avex[u], avex[u]) for u in range(self.K)])
-        print(ex_norm)
-
-        for term in [1, 2]:
-            print(f'For term {term}')
-            print('The term for it is')
-            print(self.ex_mags(J_terms[term]@self.sigma)[term])
-            print('The rest is')
-            print(sum([self.ex_mags(J_terms[other]@self.sigma)[term] for other in range(self.K) if other != term]))
-
-
-
-
-    def mattis(self, sigma):
-        # print(np.shape(self.K))
-        # print(np.shape(sigma))
-        return (1/self.N)*(self.pat @ sigma)
-
-    def ex_mags(self, sigma):
-        ex_av = np.average(self.ex, axis=0)
-        n = (1 / (self.N*(1+self.rho)*self.r)) * (ex_av @ sigma)
-        return n
-
-    def simulate(self, beta, max_it, error = 0, parallel = False, disable = True):
-        sigma_h = [self.sigma]
-        for _ in tqdm(range(max_it), disable = disable):
-            noise = np.random.uniform(low = -1, high = 1, size = self.N)
-            # print('next')
-            # self.beta = 1000
-            # print(self.mattis(np.sign(np.tanh(self.beta * (self.J @ new_sigma)))))
-            if parallel:
-                new_sigma = np.sign(np.tanh(beta * (self.J @ sigma_h[-1])) + noise)
-                print('Field ex mags')
-                field = np.sign((self.J @ sigma_h[-1]))
-                print(self.ex_mags(field))
-            else:
-                new_sigma = sigma_h[-1].copy()
-                neuron_sampling = random.sample(range(self.N), self.N)
-                for idx_N in neuron_sampling:
-                    new_neuron = np.sign(np.tanh(beta*(np.dot(self.J[idx_N], new_sigma)))+noise[idx_N])
-                    new_sigma[idx_N] = new_neuron
-
-            sigma_h.append(new_sigma)
-        return sigma_h
-
