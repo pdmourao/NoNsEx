@@ -26,9 +26,9 @@ disable = False
 
 kwargs = {'neurons': 3000,
           'K': 3,
-          'beta': 10,
+          'beta': 5,
           'H': 0,
-          'M': 100,
+          'M': 150,
           'mixM': 0,
           'max_it': 30,
           'error': 0.002,
@@ -58,7 +58,7 @@ success_array = np.zeros((len(states), all_samples, len_x, len_y))
 
 print('\nCalculating success rates...')
 cutoff = 0.95
-cutoff_mix = 0.1
+cutoff_mix = 0.4
 
 t = time()
 
@@ -70,7 +70,7 @@ for idx_s in range(all_samples):
             idx_state = states.index(state_rec)
             success_array[idx_state, idx_s, idx_x, idx_y] = 1
 
-my_idx_y=13
+my_idx_y = 13
 sample_idx = 1
 print(f'Values for {y_arg}={y_values[my_idx_y]}')
 for x_idx, x_v in enumerate(x_values):

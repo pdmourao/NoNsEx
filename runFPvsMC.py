@@ -6,18 +6,18 @@ from FPfields import NoNsEx, m_in, initial_q
 
 
 kwargs = {'beta': 10,
-          'lmb': 0.132,
-          'rho': 0.294,
+          'lmb': 0.16,
+          'rho': 0.3,
           'H': 0}
 
 kwargs_MC = {**kwargs,
-             'neurons': 5000,
-             'K': 50,
-             'M': 1,
+             'neurons': 10000,
+             'K': 5,
+             'M': 100,
              'mixM': 0,
-             'max_it': 20,
+             'max_it': 50,
              'dynamic': 'sequential',
-             'error': 1,
+             'error': 0,
              'av_counter': 1,
              'sigma_type': 'dis',
              'quality': [1, 1, 1],
@@ -30,8 +30,8 @@ kwargs_FP = {**kwargs,
              'ibound': 0}
 
 
-# output_m, output_n = MCHop_InAndOut(**kwargs_MC)
-# [print(m) for m in output_m]
+output_m, output_n = MCHop_InAndOut(**kwargs_MC)
+[print(m) for m in output_m]
 
 
 pert_matrix = np.random.uniform(-1, 1, size=(3, 3))

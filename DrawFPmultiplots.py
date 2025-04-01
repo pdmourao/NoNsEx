@@ -4,16 +4,16 @@ from FPfields import NoNsEx, m_in, initial_q
 from matplotlib import pyplot as plt
 
 pick_in = False
-pert_eps = 1e-8
+pert_eps =1e-8
 
 plot_arg = 'beta'
-plot_values = [5,10]
+plot_values = [10]
 
 x_arg = 'lmb'
 label_arg = 'rho'
 
 x_values = np.linspace(0, 0.5, 100, endpoint = False)
-label_values = np.arange(start = 0, stop = 0.25, step = 0.05)
+label_values = np.arange(start = 0, stop = 0.35, step = 0.05)
 
 others = {'alpha': 0,
           'H': 0,
@@ -53,7 +53,7 @@ for ax, value_p in zip(axs.flat, plot_values):
 		# color = next(ax._get_lines.prop_cycler)['color']
 		line = ax.plot(x_values[:idx_tr], m[:idx_tr, 0, 0], label=f'${fp.arg_to_label[label_arg]}$ = {round(value,2)}')
 		color = line[0].get_color()
-		if idx_tr > 0:
+		if len(m) > idx_tr > 0:
 			ax.vlines(x = (x_values[idx_tr]+x_values[idx_tr - 1])/2, ymin = 0, ymax = m[idx_tr-1,0,0], color = color,
 					   linestyle = 'dashed')
 	title_arg = None
