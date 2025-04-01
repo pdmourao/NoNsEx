@@ -19,8 +19,6 @@ x = 0.28
 y = 14.5
 
 
-
-
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
 # y_values = np.linspace(start = 0, stop = 0.2, num = 50)

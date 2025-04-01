@@ -6,8 +6,8 @@ from FPfields import NoNsEx, m_in, initial_q
 
 
 kwargs = {'beta': 10,
-          'lmb': 0.283,
-          'rho': 0.05,
+          'lmb': 0.132,
+          'rho': 0.294,
           'H': 0}
 
 kwargs_MC = {**kwargs,
@@ -47,5 +47,5 @@ pert = eps * pert_matrix
 m_initial = m_in(4.5/10)+pert
 print(f'Initial m:')
 print(m_initial)
-maxed_it, output_list = fp.iterator(m_initial, initial_q, it_for_guesser = 100, field = NoNsEx, **kwargs_FP)
+maxed_it, output_list = fp.iterator(m_initial, initial_q, dif_length = 0, field = NoNsEx, **kwargs_FP)
 print(output_list[-1][0])

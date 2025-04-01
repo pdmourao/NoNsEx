@@ -28,15 +28,15 @@ kwargs = {'neurons': 5000,
           'K': 50,
           'lmb': l_values,
           'beta': np.inf,
-          'rho': 0.1,
+          'rho': 0.,
           'H': y_values,
-          'M': 100,
+          'M': 1,
           'mixM': 0,
           'max_it': 20,
           'error': 1,
           'av_counter': 1,
           'quality': [1, 1, 1],
-          'dynamic': 'sequential',
+          'dynamic': 'parallel',
           'sigma_type': 'dis',
           'noise_dif': False,
           'save_n': True
@@ -53,13 +53,15 @@ len_y = len(y_values)
 
 m_array_trials, n_array_trials = MC2d_Lb(directory = 'MC2d_Lb', disable = disable, n_samples = samples, **kwargs)
 
+print(m_array_trials[0,:,40])
+
 print(m_array_trials)
 all_samples = len(m_array_trials)
 success_array = np.zeros((len(states), all_samples, len_l, len_y))
 
 print('\nCalculating success rates...')
 cutoff = 0.95
-cutoff_mix = 0.1
+cutoff_mix = 0.05
 
 t = time()
 
@@ -80,11 +82,13 @@ else:
     vec_for_imshow = np.flip(np.transpose(success_av, [0, 2, 1]), axis = 1)
     y_min, y_max = y_values[0], y_values[-1]
 
+states_to_show = ['3pats', 'mix']
 
 print(f'Calculated success rates in {time() - t} seconds.')
 for idx, state in enumerate(states):
     vec_to_plot = vec_for_imshow[idx]
-    if np.sum(vec_to_plot) > 0 and state == '3pats':
+
+    if np.sum(vec_to_plot) > 0:
         c = plt.imshow(vec_for_imshow[idx], cmap = 'Greens', vmin = 0, vmax = 1, aspect='auto', interpolation='nearest',
                        extent = [l_values[0], l_values[-1], y_min, y_max])
 
