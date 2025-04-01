@@ -30,11 +30,11 @@ kwargs = {'neurons': 3000,
           'H': 0,
           'M': 100,
           'mixM': 0,
-          'max_it': 20,
-          'error': 0.01,
-          'av_counter': 5,
+          'max_it': 30,
+          'error': 0.002,
+          'av_counter': 3,
           'quality': [1, 1, 1],
-          'dynamic': 'sequential',
+          'dynamic': 'parallel',
           'sigma_type': 'mix',
           'noise_dif': False,
           'save_n': False
@@ -52,12 +52,12 @@ len_y = len(y_values)
 
 m_array_trials, n_array_trials = MC2d(directory = 'MC2d', disable = disable, n_samples = samples, x_arg = x_arg,
                                       y_arg = y_arg, x_values = x_values, y_values = y_values, **kwargs)
-print(m_array_trials)
+
 all_samples = len(m_array_trials)
 success_array = np.zeros((len(states), all_samples, len_x, len_y))
 
 print('\nCalculating success rates...')
-cutoff = 0.8
+cutoff = 0.95
 cutoff_mix = 0.1
 
 t = time()
@@ -69,6 +69,16 @@ for idx_s in range(all_samples):
             state_rec = mags_id(m_array_trials[idx_s, idx_x, idx_y], cutoff, cutoff_mix)
             idx_state = states.index(state_rec)
             success_array[idx_state, idx_s, idx_x, idx_y] = 1
+
+my_idx_y=13
+sample_idx = 1
+print(f'Values for {y_arg}={y_values[my_idx_y]}')
+for x_idx, x_v in enumerate(x_values):
+    print(f'{x_arg} = {x_v}')
+    print(m_array_trials[sample_idx, x_idx, my_idx_y])
+    for idx_state, state in enumerate(states):
+        if state=='3pats' and success_array[idx_state, sample_idx, x_idx, my_idx_y]==1:
+            print('Success!\n')
 
 success_av = np.average(success_array, axis = 1)
 
