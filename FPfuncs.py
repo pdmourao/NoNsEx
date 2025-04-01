@@ -15,6 +15,10 @@ def iterator(*args, max_it, field, not_all_neg = [], dif_length = 0, error = 0, 
         old_iter = iter_list[-1]
         # calculates new entry
         new_iter = field(*old_iter, errorbound = ibound, **kwargs)
+        new_ms = new_iter[2]
+        # print(new_ms)
+        # print(new_ms[0]-new_ms[1])
+
         # print(new_n)
         # print(new_q)
         # calculate the error
@@ -30,6 +34,7 @@ def iterator(*args, max_it, field, not_all_neg = [], dif_length = 0, error = 0, 
                 difs[reversable_idx] = reversed_dif
                 changeable_iter[reversable_idx] = - changeable_iter[reversable_idx]
 
+        # print(f'error = {difs[0]}')
         if it >= min_it and sum(difs) < error:
             break
 
