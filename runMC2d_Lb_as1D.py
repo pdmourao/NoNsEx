@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from FPfields import NoNsEx, m_in, initial_q
 import FPfuncs as fp
 
-samples = 10
+samples = 50
 disable = False
 colors = ['red', 'orange', 'blue', 'green']
 
@@ -16,7 +16,7 @@ colors = ['red', 'orange', 'blue', 'green']
 x_arg = 'beta'
 kwargs = {'beta': 1/np.linspace(0.01, 1, 100, endpoint=True)[::-1],
           'rho': 0.05,
-          'lmb': 0.1 ,
+          'lmb': 0.1,
           'H': 0,
 }
 
