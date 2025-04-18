@@ -3,17 +3,17 @@ import FPfuncs as fp
 from FPfields import NoNsEx, m_in, initial_q
 from matplotlib import pyplot as plt
 
-pick_in = False
+pick_in = True
 pert_eps =1e-8
 
 plot_arg = 'beta'
-plot_values = [10]
+plot_values = [5,10]
 
 x_arg = 'lmb'
 label_arg = 'rho'
 
 x_values = np.linspace(0, 0.5, 100, endpoint = False)
-label_values = np.arange(start = 0, stop = 0.35, step = 0.05)
+label_values = np.arange(start = 0, stop = 0.11, step = 0.025)
 
 others = {'alpha': 0,
           'H': 0,
@@ -51,7 +51,7 @@ for ax, value_p in zip(axs.flat, plot_values):
 				idx_tr = idx_m
 				break
 		# color = next(ax._get_lines.prop_cycler)['color']
-		line = ax.plot(x_values[:idx_tr], m[:idx_tr, 0, 0], label=f'${fp.arg_to_label[label_arg]}$ = {round(value,2)}')
+		line = ax.plot(x_values[:idx_tr], m[:idx_tr, 0, 0], label=f'${fp.arg_to_label[label_arg]}$ = {round(value,3)}')
 		color = line[0].get_color()
 		if len(m) > idx_tr > 0:
 			ax.vlines(x = (x_values[idx_tr]+x_values[idx_tr - 1])/2, ymin = 0, ymax = m[idx_tr-1,0,0], color = color,

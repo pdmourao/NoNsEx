@@ -8,35 +8,30 @@ from matplotlib import pyplot as plt
 from FPfields import NoNsEx, m_in, initial_q
 import FPfuncs as fp
 
-samples = 0
+samples = 10
 disable = False
 colors = ['red', 'orange', 'blue', 'green']
 
-x_arg = 'T'
-x_values = np.linspace(0.01, 1, 100, endpoint=True)
 
-kwargs = {'beta': 10,
-          'rho': 0.1,
+x_arg = 'beta'
+kwargs = {'beta': 1/np.linspace(0.01, 1, 100, endpoint=True)[::-1],
+          'rho': 0.05,
           'lmb': 0.1 ,
           'H': 0,
 }
 
-if x_arg == 'T':
-    kwargs['beta'] = 1/x_values
-else:
-    if x_arg not in ['beta', 'T', 'lmb', 'H']:
-        raise Exception('Non-allowed input!')
-    kwargs[x_arg] = x_values
-
 kwargs_MC = {'neurons': 5000,
              'K': 5,
-             'M': 100,
-             'max_it': 20,
-             'error': 0.01,
-             'av_counter': 5,
+             'M': 150,
+             'mixM': 0,
+             'max_it': 30,
+             'error': 0.002,
+             'av_counter': 3,
              'quality': [1, 1, 1],
-             'dynamic': 'sequential',
+             'dynamic': 'parallel',
+             'sigma_type': 'mix',
              'noise_dif': False,
+             'save_n': False,
              **kwargs
              }
 
@@ -46,11 +41,11 @@ else:
     kwargs_MC['lmb'] = [kwargs_MC['lmb']]
 
 sigma_type = 'mix'
+x_values = kwargs_MC[x_arg]
 len_x = len(x_values)
 
-m_arrays = MC2d_Lb(disable = disable, n_samples = samples, sigma_type = sigma_type, **kwargs_MC)
-all_samples = len(m_arrays)
-m_arrays = np.reshape(m_arrays, (all_samples, len_x, 3, 3))
+m_arrays, m_arrays_ex = MC2d_Lb(directory = 'MC1d_Lb', disable = disable, n_samples = samples, **kwargs_MC)
+
 
 cutoff = 0.7
 

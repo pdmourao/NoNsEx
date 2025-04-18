@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from MCfuncs import MC2d_Lb, mags_id
+from MCfuncs import MC2d_Lb, mags_id_old
 from time import time
 
 t0 = time()
@@ -69,7 +69,7 @@ t = time()
 for idx_s in range(all_samples):
     for idx_l in range(len_l):
         for idx_y in range(len_y):
-            state_rec = mags_id(m_array_trials[idx_s, idx_l, idx_y], cutoff, cutoff_mix)
+            state_rec = mags_id_old(m_array_trials[idx_s, idx_l, idx_y], cutoff, cutoff_mix)
             idx_state = states.index(state_rec)
             success_array[idx_state, idx_s, idx_l, idx_y] = 1
 

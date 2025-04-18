@@ -14,9 +14,9 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-idx_s = 0
-x = 0.28
-y = 14.5
+idx_s = 2
+x = 0.26
+y = 20.4
 
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
@@ -30,8 +30,8 @@ print(f'Values: lmb = {l_values[idx_l]}, beta = {y_values[idx_y]}')
 
 array_dict = {'beta': y_values,
               'H': 0,
-              'max_it': 20,
-              'error': 0.01,
+              'max_it': 10,
+              'error': 0.002,
               }
 
 sys_kwargs = {'neurons': 5000,
@@ -46,7 +46,7 @@ sys_kwargs = {'neurons': 5000,
 
 dynamic = 'sequential'
 save_n = False
-av_counter = 5
+av_counter = 2
 
 len_l = len(l_values)
 len_y = len(y_values)
@@ -120,8 +120,8 @@ if compare_simulations:
     time1 = time()-time0
     time0 = time()
     print('\n System 2 running...')
-    output2 = system2.simulate(dynamic = 'parallel', sim_rngSS = rng_seeds2[idx_l * len_y + idx_y], disable = True, prints = True,
-                               av_counter = 3, **alt_array_dict)[0]
+    output2 = system2.simulate(dynamic = 'sequential', sim_rngSS = rng_seeds2[idx_l * len_y + idx_y], disable = True, prints = True,
+                               av_counter = 2, **alt_array_dict)[0]
     time2 = time()-time0
     print(f'\nCheck 1: {np.array_equal(np.mean(output1[-av_counter:], axis = 0), mattis_from_file)}')
     # print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')

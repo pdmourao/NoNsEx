@@ -7,7 +7,8 @@ from FPfuncs import recovered_pats
 use_files = True
 field = NoNsEx
 
-rho_values = np.arange(start = 0, stop = 0.31, step = 0.01)
+# rho_values = np.arange(start = 0, stop = 0.31, step = 0.01)
+rho_values = [0.025, 0.075]
 beta_values1 = np.arange(start = 1.5, stop = 5, step = 0.5)
 beta_values2 = np.arange(start = 5, stop = 21)
 beta_values = np.concatenate([beta_values1, beta_values2])
@@ -41,21 +42,21 @@ other_initial = np.array([[1-eps,   eps, eps],
 
     # pert = np.array([[0.01, -0.06, 0], [0.01, -0.06, 0], [0.01, -0.06, 0]])
 
-for beta in beta_values:
-    print(f'beta = {beta}')
+for rho in rho_values:
+    print(f'rho = {rho}')
     kwargs = {'lmb': np.linspace(0, 0.5, 100, endpoint = False),
-              'rho': 0.02,
-              'beta': beta,
+              'rho': rho,
+              'beta': 5,
               'alpha': 0,
               'H': 0,
               'max_it': 1000,
               'ibound': 1e-12,
               'error': 1e-10}
 
-    # pert = 1e-8 * pert_2
-    # args = m_in(4/10)+pert, initial_q
+    pert = 1e-8 * pert_2
+    args = m_in(4/10)+pert, initial_q
 
-    # m_out, q_out, n_out = fp.solve(field, *args, use_files = use_files, disable = False, **kwargs)
+    m_out, q_out, n_out = fp.solve(field, *args, use_files = use_files, disable = False, **kwargs)
 
     pert = 1e-8 * pert_4
     args = m_in() + pert, initial_q

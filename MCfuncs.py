@@ -6,6 +6,9 @@ import json
 import os
 from storage import npz_file_finder
 from npy_append_array import NpyAppendArray
+from functools import reduce
+from scipy.interpolate import make_interp_spline
+from matplotlib import pyplot as plt
 
 
 # freqs function
@@ -413,7 +416,7 @@ def pat_id(m, cutoff_rec, cutoff_mix):
 		return 'mix_signed'
 	return None
 
-def mags_id(m, cutoff_rec, cutoff_mix):
+def mags_id_old(m, cutoff_rec, cutoff_mix):
 	ids = [pat_id(line, cutoff_rec, cutoff_mix) for line in m]
 	if all([ident == 'mix' for ident in ids]):
 		return 'mix'
@@ -427,3 +430,91 @@ def mags_id(m, cutoff_rec, cutoff_mix):
 		return f'{n_patterns}pats{signed}{inc}'
 	return 'other'
 
+def mags_id(state, m, cutoff):
+	if state == 'dis':
+		pats = np.argmax(np.abs(m), axis=1)
+		pats_mags = np.array([np.abs(m)[idx,pats[idx]] for idx in range(len(m))])
+		if len(set(pats)) == len(pats) and np.all(pats_mags > cutoff):
+			return True
+		else:
+			return False
+	elif state == 'mix':
+		pass
+	else:
+		return False
+
+
+def gridvec_toplot(ax, state, m_array, x_arg, y_arg, limx0, limx1, limy0, limy1, cutoff, aspect = 'auto', interpolate = 'x', **kwargs):
+
+	all_samples, len_x, len_y, *rest = np.shape(m_array)
+	success_array = np.zeros((all_samples, len_x, len_y))
+
+	print('\nCalculating success rates...')
+
+	t = time()
+
+	for idx_s in range(all_samples):
+		for idx_x in range(len_x):
+			for idx_y in range(len_y):
+				if mags_id(state, m_array[idx_s, idx_x, idx_y], cutoff):
+					success_array[idx_s, idx_x, idx_y] = 1
+
+	success_av = np.average(success_array, axis=0)
+
+	vec_for_imshow = np.transpose(np.flip(success_av, axis=-1))
+	print(f'Calculated success rates in {time() - t} seconds.')
+
+	input_str = '_'.join([f'{key}{int(value)}' for key, value in kwargs.items()])
+	disname = f'HessianDis_{x_arg}{y_arg}_{input_str}'
+	mixname = f'HessianMix_{x_arg}{y_arg}_{input_str}'
+	cutoffname = f'cutoff_{x_arg}{y_arg}_{input_str}_c{int(1000 * cutoff)}'
+
+	filesfromM = [disname, mixname, cutoffname]
+	osfilesfromM = [os.path.join('TransitionData', file) for file in filesfromM]
+	colorsfromM = ['red', 'blue', 'black']
+	stylesfromM = ['solid', 'solid', 'dashed']
+	interp_funcs = []
+	tr_lines = []
+
+	for idx_f, file in enumerate(osfilesfromM):
+		try:
+			with open(file, 'rb') as f:
+				depth = np.fromfile(f, dtype=np.dtype('int32'), count=1)[0]
+				dims = np.fromfile(f, dtype=np.dtype('int32'), count=depth)
+				data = np.reshape(np.fromfile(f, dtype=np.dtype('float64'),
+											  count=reduce(lambda x, y: x * y, dims)), dims)
+			if interpolate == 'x':
+				interpolator = make_interp_spline(*data)
+				interp_funcs.append(interpolator)
+				x_values_smooth = np.linspace(start=data[0, 0], stop=data[0, -1], num=500, endpoint=True)
+				if idx_f == 2:
+					x_values_smooth = [x for x in x_values_smooth if
+									   interp_funcs[1](x) < interpolator(x) < interp_funcs[0](x)]
+				tr_lines.append([x_values_smooth, interpolator(x_values_smooth)])
+			elif interpolate == 'y':
+				interpolator = make_interp_spline(*(data[::-1]))
+				interp_funcs.append(interpolator)
+				y_values_smooth = np.linspace(start=data[1, 0], stop=data[1, -1], num=500, endpoint=True)
+				if idx_f == 2:
+					y_values_smooth = [y for y in y_values_smooth if
+									   interp_funcs[1](y) < interpolator(y) < interp_funcs[0](y)]
+				tr_lines.append([interpolator(y_values_smooth), y_values_smooth])
+			else:
+				tr_lines.append(data)
+		except FileNotFoundError:
+			tr_lines.append([[], []])
+
+
+	c = ax.imshow(vec_for_imshow, cmap='Greens', vmin=0, vmax=1, aspect = aspect, interpolation='nearest',
+				   extent=[limx0, limx1, limy0, limy1])
+
+	ax.set_xlim(limx0, limx1)
+	ax.set_ylim(limy0, limy1)
+
+	for idx_line, line in enumerate(tr_lines):
+		if interpolate:
+			ax.plot(*line, color=colorsfromM[idx_line], linestyle=stylesfromM[idx_line], linewidth=2.0)
+		else:
+			ax.scatter(*line, color=colorsfromM[idx_line])
+
+	return c

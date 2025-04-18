@@ -2,7 +2,7 @@ from MCclasses import HopfieldMC as hop
 from MCfuncs import MCHop_InAndOut
 import numpy as np
 import FPfuncs as fp
-from FPfields import NoNsEx, m_in, initial_q
+from FPfields import NoNsEx, m_in, initial_q, HopEx
 
 
 kwargs = {'beta': 10,
@@ -47,5 +47,10 @@ pert = eps * pert_matrix
 m_initial = m_in(4.5/10)+pert
 print(f'Initial m:')
 print(m_initial)
-maxed_it, output_list = fp.iterator(m_initial, initial_q, dif_length = 0, field = NoNsEx, **kwargs_FP)
+nd = 0.4926
+nnd = -0.2002
+n_other = np.array([[nd,nnd,nnd],
+                    [nnd,nd,nnd],
+                    [nnd,nnd,nd]])
+maxed_it, output_list = fp.iterator(m_in(4.5/10), initial_q,n_other, dif_length = 0, field = NoNsEx, **kwargs_FP)
 print(output_list[-1][0])
