@@ -439,7 +439,10 @@ def mags_id(state, m, cutoff):
 		else:
 			return False
 	elif state == 'mix':
-		pass
+		if np.all(1/2 - cutoff < m) and np.all(m < 1/2 + cutoff):
+			return True
+		else:
+			return False
 	else:
 		return False
 

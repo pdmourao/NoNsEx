@@ -1,16 +1,12 @@
-from MCfuncs import MC2d_Lb
+from MCfuncs import MC2d_Lb, mags_id
 import numpy as np
-from time import time
-from storage import npz_file_finder
-import os
-from npy_append_array import NpyAppendArray
 from matplotlib import pyplot as plt
 from FPfields import NoNsEx, m_in, initial_q
 import FPfuncs as fp
 
-samples = 50
+samples = 30
 disable = False
-colors = ['red', 'orange', 'blue', 'green']
+colors = ['green', 'orange', 'red']
 
 
 x_arg = 'beta'
@@ -40,46 +36,60 @@ if x_arg == 'lmb':
 else:
     kwargs_MC['lmb'] = [kwargs_MC['lmb']]
 
-sigma_type = 'mix'
-x_values = kwargs_MC[x_arg]
+
+m_arrays, n_arrays = MC2d_Lb(directory = 'MC1d_Lb', disable = disable, n_samples = samples, **kwargs_MC)
+
+if x_arg == 'lmb':
+    kwargs_MC['beta'] = [kwargs_MC['beta']]
+    x_values = kwargs_MC[x_arg]
+    m_arrays = m_arrays[:, :, 0]
+
+elif x_arg == 'beta':
+    kwargs_MC['lmb'] = [kwargs_MC['lmb']]
+    x_values = 1 / kwargs_MC[x_arg][::-1]
+    m_arrays = np.flip(m_arrays[:, 0], 1)
+
+else:
+    kwargs_MC['lmb'] = [kwargs_MC['lmb']]
+    x_values = kwargs_MC[x_arg]
+    m_arrays = m_arrays[:, 0]
+
 len_x = len(x_values)
 
-m_arrays, m_arrays_ex = MC2d_Lb(directory = 'MC1d_Lb', disable = disable, n_samples = samples, **kwargs_MC)
-
-
-cutoff = 0.7
+cutoff_dis = 0.9
+cutoff_mix = 0.1
 
 m_MC = np.zeros((len_x, 3))
 rate_success_MC = np.zeros(len_x)
 
-x_values_1 = []
-x_values_2 = []
-m_dis = []
-m_notdis = []
+x_axes = [[] for color in colors]
+m_ps = [[] for color in colors]
 
 for idx_x, x in enumerate(x_values):
-    mags_dis = []
-    mags_notdis = []
+    mags = [[] for color in colors]
+
     successes = 0
     for idx_s in range(samples):
-        this_diag = np.sort(np.diagonal(m_arrays[idx_s, idx_x]))[::-1]
-        if all([entry > cutoff for entry in this_diag]):
-            mags_dis.append(this_diag)
+        this_m = m_arrays[idx_s, idx_x]
+        this_diag = np.sort(np.diagonal(this_m))[::-1]
+        if mags_id('dis', this_m, cutoff_dis):
+            mags[0].append(np.sort(this_m, axis = None)[-3:])
             successes += 1
+        elif mags_id('mix', this_m, cutoff_mix):
+            mags[1].append(this_m)
         else:
-            mags_notdis.append(this_diag)
-    if successes > 0:
-        m_dis.append(np.mean(np.array(mags_dis)))
-        x_values_1.append(x)
-    if successes < samples:
-        m_notdis.append(np.mean(np.array(mags_notdis), axis=0))
-        x_values_2.append(x)
+            mags[2].append(this_m)
+
+    for idx_m, mag in enumerate(mags):
+        if len(mag) > 0:
+            m_ps[idx_m].append(np.mean(mag))
+            x_axes[idx_m].append(x)
     rate_success_MC[idx_x] = successes / samples
 
 
-[plt.scatter(x_values_2, np.array(m_notdis)[:, i], label=f'm[{i},{i}]', color = colors[i], s = 1) for i in range(3)]
-plt.scatter(x_values_1, m_dis, color = colors[-1], s = 1)
+[plt.scatter(x_axes[idx], m_av, label=f'{idx}', color = colors[idx], s = 1) for idx, m_av in enumerate(m_ps)]
 plt.plot(x_values, rate_success_MC, linestyle = 'dashed', color = 'black')
+
 
 draw_FP = False
 if draw_FP:
@@ -121,5 +131,4 @@ if draw_FP:
 plt.title(f'{kwargs_MC['neurons']} neurons, K = {kwargs_MC['K']}\nrho = {kwargs['rho']}, lmb = {kwargs['lmb']}, {samples} sample(s)')
 
 plt.show()
-
 
