@@ -13,7 +13,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 0
+samples = 50
 interpolate_bool = True
 
 x_arg = 'rho'
@@ -27,9 +27,9 @@ disable = False
 
 kwargs = {'neurons': 3000,
           'K': 3,
-          'beta': 5,
+          'beta': 10,
           'H': 0,
-          'M': 150,
+          'M': 100,
           'mixM': 0,
           'max_it': 30,
           'error': 0.002,
