@@ -13,7 +13,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 50
+samples = 0
 interpolate_bool = True
 
 x_arg = 'rho'
@@ -27,15 +27,15 @@ disable = False
 
 kwargs = {'neurons': 3000,
           'K': 3,
-          'beta': 10,
+          'beta': np.inf,
           'H': 0,
           'M': 100,
           'mixM': 0,
           'max_it': 30,
-          'error': 0.002,
-          'av_counter': 3,
+          'error': 1,
+          'av_counter': 1,
           'quality': [1, 1, 1],
-          'dynamic': 'parallel',
+          'dynamic': 'sequential',
           'sigma_type': 'mix',
           'noise_dif': False,
           'save_n': False
@@ -47,8 +47,10 @@ len_y = len(y_values)
 m_array_trials, n_array_trials = MC2d(directory = 'MC2d', disable = disable, n_samples = samples, x_arg = x_arg,
                                       y_arg = y_arg, x_values = x_values, y_values = y_values, **kwargs)
 
-cutoff = 0.95
+cutoff = 0.8
+print(m_array_trials)
 
 fig, ax = plt.subplots(1)
-gridvec_toplot(ax, 'dis', m_array_trials, 'rho', 'lmb', x_values, y_values, cutoff = cutoff, beta = kwargs['beta'], H = kwargs['H'])
+gridvec_toplot(ax, 'dis', m_array_trials, x_arg = x_arg, y_arg = y_arg, limx0 = x_values[0], limx1 = x_values[-1], limy0 = y_values[0], limy1 = y_values[-1], cutoff = cutoff,
+               beta = kwargs['beta'], H = kwargs['H'])
 plt.show()
