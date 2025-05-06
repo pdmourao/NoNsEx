@@ -3,17 +3,17 @@ import FPfuncs as fp
 from FPfields import NoNsEx, m_in, initial_q
 from matplotlib import pyplot as plt
 
-pick_in = True
+pick_in = False
 pert_eps =1e-8
 
-plot_arg = 'beta'
-plot_values = [5,10]
+plot_arg = 'rho'
+plot_values = [0.05,0.1]
 
-x_arg = 'lmb'
-label_arg = 'rho'
+x_arg = 'beta'
+label_arg = 'lmb'
 
-x_values = np.linspace(0, 0.5, 100, endpoint = False)
-label_values = np.arange(start = 0, stop = 0.11, step = 0.025)
+x_values = 1/np.linspace(0.01, 1, 100, endpoint = True)
+label_values = np.arange(start = 0, stop = 0.3, step = 0.05)
 
 others = {'alpha': 0,
           'H': 0,
@@ -51,10 +51,10 @@ for ax, value_p in zip(axs.flat, plot_values):
 				idx_tr = idx_m
 				break
 		# color = next(ax._get_lines.prop_cycler)['color']
-		line = ax.plot(x_values[:idx_tr], m[:idx_tr, 0, 0], label=f'${fp.arg_to_label[label_arg]}$ = {round(value,3)}')
+		line = ax.plot(1/x_values[:idx_tr], m[:idx_tr, 0, 0], label=rf'$\lambda$ = {round(value,3)}')
 		color = line[0].get_color()
 		if len(m) > idx_tr > 0:
-			ax.vlines(x = (x_values[idx_tr]+x_values[idx_tr - 1])/2, ymin = 0, ymax = m[idx_tr-1,0,0], color = color,
+			ax.vlines(x = 1/((x_values[idx_tr]+x_values[idx_tr - 1])/2), ymin = 0, ymax = m[idx_tr-1,0,0], color = color,
 					   linestyle = 'dashed')
 	title_arg = None
 	for arg in ['beta', 'lmb', 'rho']:
@@ -62,11 +62,20 @@ for ax, value_p in zip(axs.flat, plot_values):
 			title_arg = arg
 
 	ax.legend()
+	if x_arg == 'beta':
+		ax.set_xlim(1/x_values[0], 1/x_values[-1])
+		x_arg = 'T'
+	else:
+		ax.set_xlim(x_values[0],x_values[-1]+x_values[1]-x_values[0])
+
 	ax.set_ylabel('$m$')
-	ax.set_xlabel(f'${fp.arg_to_label[x_arg]}$')
+	ax.set_xlabel(rf'${x_arg}$')
 	ax.label_outer()
-	ax.set_xlim(x_values[0],x_values[-1]+x_values[1]-x_values[0])
-	ax.set_title(f'${fp.arg_to_label[plot_arg]}$ = {value_p}')
+
+	ax.set_title(rf'$\{plot_arg} = {value_p}$')
+
+	if x_arg == 'T':
+		x_arg = 'beta'
 
 plt.show()
 

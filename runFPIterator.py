@@ -8,7 +8,7 @@ use_files = True
 field = NoNsEx
 
 # rho_values = np.arange(start = 0, stop = 0.31, step = 0.01)
-rho_values = [0.05]
+rho_values = [0.05, 0.1]
 beta_values1 = np.arange(start = 1.5, stop = 5, step = 0.5)
 beta_values2 = np.arange(start = 5, stop = 21)
 beta_values = np.concatenate([beta_values1, beta_values2])

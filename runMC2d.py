@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from MCfuncs import MC2d, gridvec_toplot
 from time import time
+import FPfuncs as fp
 
 t0 = time()
 
@@ -51,6 +52,16 @@ cutoff = 0.8
 print(m_array_trials)
 
 fig, ax = plt.subplots(1)
-gridvec_toplot(ax, 'dis', m_array_trials, x_arg = x_arg, y_arg = y_arg, limx0 = x_values[0], limx1 = x_values[-1], limy0 = y_values[0], limy1 = y_values[-1], cutoff = cutoff,
-               beta = kwargs['beta'], H = kwargs['H'])
+gridvec_toplot(ax, 'dis', m_array_trials, x_arg = x_arg, y_arg = y_arg, limx0 = x_values[0], limx1 = x_values[-1],
+               limy0 = y_values[0], limy1 = y_values[-1], cutoff = cutoff, beta = kwargs['beta'], H = kwargs['H'])
+
+if x_arg == 'lmb':
+    x_arg = 'lambda'
+if y_arg == 'lmb':
+    y_arg = 'lambda'
+
+ax.set_xlabel(rf'$\{x_arg}$')
+ax.set_ylabel(rf'$\{y_arg}$')
+
+ax.set_title(r'$\beta = \infty$')
 plt.show()

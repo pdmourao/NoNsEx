@@ -127,24 +127,31 @@ for idx_x, x in enumerate(x_values):
 print(m_FP)
 
 for tr, idx_tr in enumerate(idx_trs[:-1]):
-    plt.plot(x_values[idx_tr:idx_trs[tr+1]], np.max(m_FP[idx_tr:idx_trs[tr+1]], axis = (1, 2)), color=colors[tr])
+    if tr < 2:
+        plt.plot(x_values[idx_tr:idx_trs[tr+1]], np.max(m_FP[idx_tr:idx_trs[tr+1]], axis = (1, 2)),
+                 color=colors[tr], linestyle = 'dashed', linewidth = 0.5)
 
-    if tr > 0:
+    if tr == 1:
         plt.vlines(x=(x_values[idx_tr - 1] + x_values[idx_tr - 1]) / 2, ymin=0, ymax=1, color='grey',
                    linestyle='dashed')
+    plt.xlim(0,1)
+    plt.ylabel('$m$')
+    plt.xlabel('$T$')
 
 if False:
     [plt.plot(x_values[idx_tr:], m[idx_tr:, i, i], color = colors[i], linestyle = 'dashed') for i in range(3)]
 
 
-plt.title(f'{kwargs_MC['neurons']} neurons, K = {kwargs_MC['K']}\nrho = {kwargs['rho']}, lmb = {kwargs['lmb']}, {samples} sample(s)')
+plt.title(rf'Disentangled magnetizations ($\rho = {kwargs['rho']}$, $\lambda = {kwargs['lmb']}$)')
 
 plt.errorbar(x = x_axes[0], y = m_ps[0], yerr = m_stds[0], label=f'mix', color = colors[0], fmt = 'none')
 plt.errorbar(x = x_axes[1], y = m_ps[1], yerr = m_stds[1], label=f'dis', color = colors[1], fmt = 'none')
-plt.scatter(x_axes[2], m_ps[2], label=f'others', color = colors[2], s = 1)
+# plt.scatter(x_axes[2], m_ps[2], label=f'others', color = colors[2], s = 1)
 
 plt.show()
 
 plt.plot(x_values, rate_success_MC, linestyle = 'dashed', color = 'black')
+plt.xlabel('$T$')
+plt.title(rf'Disentanglement frequency ($\rho = {kwargs['rho']}$, $\lambda = {kwargs['lmb']}$)')
 
 plt.show()
