@@ -15,13 +15,11 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 10
+samples = 50
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
-# y_values = np.linspace(start = 0, stop = 0.2, num = 50)
 
-flip_yaxis = True
 disable = False
 
 kwargs = {'neurons': 5000,
@@ -47,11 +45,12 @@ len_y = len(y_values)
 
 m_array_trials, n_array_trials = MC2d_Lb(directory = 'MC2d_Lb', disable = disable, n_samples = samples, **kwargs)
 
-cutoff = 0.9
+cutoff = 0.95
 
 fig, ax = plt.subplots(1)
-gridvec_toplot(ax, 'dis', m_array_trials, 'lmb', 'beta', l_values, y_values, cutoff = cutoff, rho = 50, H = 0, interpolate = 'y')
-ax.yaxis.set_inverted(True)
+gridvec_toplot(ax, 'dis', m_array_trials, 'lmb', 'beta', limx0 = l_values[0], limx1 = l_values[-1],
+               limy0 = y_values[-1], limy1 = y_values[0], cutoff = cutoff, rho = 50, H = 0, interpolate = 'y')
+
 ax.set_xlabel(fp.arg_to_label['lmb'])
 ax.set_ylabel(fp.arg_to_label['beta'])
 ax.set_title(f'{fp.arg_to_label['rho']} = {kwargs['rho']}')
