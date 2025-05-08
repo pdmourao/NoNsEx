@@ -465,7 +465,7 @@ def gridvec_toplot(ax, state, m_array, x_arg, y_arg, limx0, limx1, limy0, limy1,
 	success_av = np.average(success_array, axis=0)
 
 	vec_for_imshow = np.transpose(np.flip(success_av, axis=-1))
-	vec_for_imshow = np.transpose(success_av)
+	# vec_for_imshow = np.transpose(success_av)
 	print(f'Calculated success rates in {time() - t} seconds.')
 
 	input_str = '_'.join([f'{key}{int(value)}' for key, value in kwargs.items() if not np.isinf(value)])

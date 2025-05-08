@@ -14,7 +14,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 0
+samples = 50
 interpolate_bool = True
 
 x_arg = 'rho'
@@ -28,15 +28,15 @@ disable = False
 
 kwargs = {'neurons': 3000,
           'K': 3,
-          'beta': np.inf,
+          'beta': 10,
           'H': 0,
           'M': 100,
           'mixM': 0,
           'max_it': 30,
-          'error': 1,
-          'av_counter': 1,
+          'error': 0.002,
+          'av_counter': 3,
           'quality': [1, 1, 1],
-          'dynamic': 'sequential',
+          'dynamic': 'parallel',
           'sigma_type': 'mix',
           'noise_dif': False,
           'save_n': False
@@ -63,5 +63,7 @@ if y_arg == 'lmb':
 ax.set_xlabel(rf'$\{x_arg}$')
 ax.set_ylabel(rf'$\{y_arg}$')
 
-ax.set_title(r'$\beta = \infty$')
+beta_title = '\infty' if np.isinf(kwargs['beta']) else kwargs['beta']
+
+ax.set_title(rf'$\beta = {beta_title}$')
 plt.show()
