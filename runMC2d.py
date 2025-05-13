@@ -27,9 +27,9 @@ disable = False
 
 kwargs = {'neurons': 3000,
           'K': 3,
-          'beta': 10,
+          'beta': 5,
           'H': 0,
-          'M': 100,
+          'M': 150,
           'mixM': 0,
           'max_it': 30,
           'error': 0.002,
