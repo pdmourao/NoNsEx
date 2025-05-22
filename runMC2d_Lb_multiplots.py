@@ -54,8 +54,8 @@ for idx_r, rho_v in enumerate(rho_values):
         m_array_trials, n_array_trials = MC2d_Lb(directory='MC2d_Lb', disable=disable, n_samples=0, rho = rho_v,
                                               **kwargs)
 
-        c = gridvec_toplot(ax, 'dis', m_array_trials, x_arg, y_arg, 0, 0.5, 1, 25, cutoff = cutoff,
-                           interpolate = 'y', rho = int(1000*rho_v), H = kwargs['H'])
+        c = gridvec_toplot(ax, 'dis', m_array_trials, 0, 0.5, 1, 25, cutoff = cutoff,
+                           interpolate = 'y', rho = rho_v)
 
         ax.set_ylim(1.5, 20)
         ax.yaxis.set_inverted(True)

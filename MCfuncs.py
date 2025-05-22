@@ -54,8 +54,12 @@ def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif
 	return system.simulate(beta = beta, H = H, max_it = max_it, error = error, av_counter = av_counter,
 						   dynamic = dynamic, cut = cut, disable = True, sim_rngSS = sim_rngSS)
 
-def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_type, disable = False, **kwargs):
+def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_type, silent = False, disable = False, **kwargs):
 
+	n_samples_original = n_samples
+
+	if silent:
+		disable = True
 	directory = directory
 	len_y = len(y_values)
 	len_x = len(x_values)
@@ -78,10 +82,14 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 		with open(file_npz[:-3] + 'json', mode="r", encoding="utf-8") as json_file:
 			data = json.load(json_file)
 			entropy_from_os = int(data['entropy'])
-		print('File found. Restarting.')
+		if not silent:
+			print('File found!')
+			if n_samples > 0:
+				print('Restarting...')
 		samples_present = len([file for file in os.listdir(directory) if
 							   file_npz[:-4] in os.path.join(directory, file) and file[-5:] == 'm.npy'])
-		print(f'There are {samples_present} sample(s) present')
+		if not silent:
+			print(f'There are {samples_present} sample(s) present')
 		if n_samples == 0:
 			if samples_present > 0:
 				last_sample = np.load(file_npz[:-4] + f'_sample{samples_present - 1}_m.npy')
@@ -107,14 +115,17 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 	mattis_ex = np.zeros((n_samples, len_x, len_y, 3, 3))
 
 	t0 = time()
-	rng_seeds = np.random.SeedSequence(entropy_from_os).spawn(len_x * len_y)
-	print(f'Generated seeds for simulate in {round(time() - t0, 3)} s.')
+
+	if n_samples_original > 0:
+		rng_seeds = np.random.SeedSequence(entropy_from_os).spawn(len_x * len_y)
+		print(f'Generated seeds for simulate in {round(time() - t0, 3)} s.')
 
 	inputs.pop('save_n')
 
 	for idx_s in range(n_samples):
 		t = time()
-		print(f'\nSolving system {idx_s + 1}/{n_samples}...')
+		if not silent:
+			print(f'\nSolving system {idx_s + 1}/{n_samples}...')
 
 		file_npy_m = file_npz[:-4] + f'_sample{idx_s}_m.npy'
 		file_npy_n = file_npz[:-4] + f'_sample{idx_s}_n.npy'
@@ -167,7 +178,7 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 							with NpyAppendArray(file_npy_n) as npyf:
 								npyf.append(output_n_mean.reshape((1, 3, 3)))
 
-					if disable:
+					if disable and not silent:
 						print(f'{x_arg} = {round(x_v, 2)}, {y_arg} = {round(y_v, 2)} done.')
 						# print(f'MaxSD = {np.max(np.std(output, axis=0))}')
 						# print(f'MaxDif = {np.max(np.sum(np.diff(output, axis=0), axis=0))}')
@@ -175,7 +186,8 @@ def MC2d(directory, save_n, n_samples, y_values, y_arg, x_values, x_arg, dynamic
 						pbar.update(1)
 
 		t = time() - t
-		print(f'System ran in {round(t / 60)} minutes.')
+		if not silent:
+			print(f'System ran in {round(t / 60)} minutes.')
 
 	return mattis, mattis_ex
 
@@ -447,12 +459,11 @@ def mags_id(state, m, cutoff):
 		return False
 
 
-def gridvec_toplot(ax, state, m_array, x_arg, y_arg, limx0, limx1, limy0, limy1, cutoff, aspect = 'auto', interpolate = 'x', **kwargs):
+def gridvec_toplot(ax, state, m_array, limx0, limx1, limy0, limy1, cutoff, aspect = 'auto',
+				   interpolate = 'x', **kwargs):
 
 	all_samples, len_x, len_y, *rest = np.shape(m_array)
 	success_array = np.zeros((all_samples, len_x, len_y))
-
-	print('\nCalculating success rates...')
 
 	t = time()
 
@@ -468,11 +479,10 @@ def gridvec_toplot(ax, state, m_array, x_arg, y_arg, limx0, limx1, limy0, limy1,
 	# vec_for_imshow = np.transpose(success_av)
 	print(f'Calculated success rates in {time() - t} seconds.')
 
-	input_str = '_'.join([f'{key}{int(value)}' for key, value in kwargs.items() if not np.isinf(value)])
-
-	disname = f'HessianDis_{x_arg}{y_arg}_{input_str}'
-	mixname = f'HessianMix_{x_arg}{y_arg}_{input_str}'
-	cutoffname = f'cutoff_{x_arg}{y_arg}_{input_str}_c{int(1000 * cutoff)}'
+	input_str = '_'.join([f'{key}{int(1000*value)}' for key, value in kwargs.items() if not np.isinf(value)])
+	disname = f'discurve_{input_str}'
+	mixname = f'mixcurve_{input_str}'
+	cutoffname = f'magdiscurve_{input_str}_c{int(1000 * cutoff)}'
 
 	filesfromM = [disname, mixname, cutoffname]
 	osfilesfromM = [os.path.join('TransitionData', file) for file in filesfromM]
@@ -486,15 +496,20 @@ def gridvec_toplot(ax, state, m_array, x_arg, y_arg, limx0, limx1, limy0, limy1,
 			with open(file, 'rb') as f:
 				depth = np.fromfile(f, dtype=np.dtype('int32'), count=1)[0]
 				dims = np.fromfile(f, dtype=np.dtype('int32'), count=depth)
-				data = np.reshape(np.fromfile(f, dtype=np.dtype('float64'),
-											  count=reduce(lambda x, y: x * y, dims)), dims)
+				data = np.transpose(np.reshape(np.fromfile(f, dtype=np.dtype('float64'),
+											  count=reduce(lambda x, y: x * y, dims)), dims))
 			if interpolate == 'x':
 				interpolator = make_interp_spline(*data)
 				interp_funcs.append(interpolator)
 				x_values_smooth = np.linspace(start=data[0, 0], stop=data[0, -1], num=500, endpoint=True)
 				if idx_f == 2:
-					x_values_smooth = [x for x in x_values_smooth if
-									   interp_funcs[1](x) < interpolator(x) < interp_funcs[0](x)]
+					x_values_smooth = np.array([x for x in x_values_smooth if
+									   interp_funcs[1](x) < interpolator(x) < interp_funcs[0](x)])
+					try:
+						idx_zero=np.where(interpolator(x_values_smooth) <= 0)[0][0]
+						x_values_smooth = x_values_smooth[:idx_zero]
+					except IndexError:
+						pass
 				tr_lines.append([x_values_smooth, interpolator(x_values_smooth)])
 			elif interpolate == 'y':
 				interpolator = make_interp_spline(*(data[::-1]))
@@ -504,6 +519,7 @@ def gridvec_toplot(ax, state, m_array, x_arg, y_arg, limx0, limx1, limy0, limy1,
 					y_values_smooth = [y for y in y_values_smooth if
 									   interp_funcs[1](y) < interpolator(y) < interp_funcs[0](y)]
 				tr_lines.append([interpolator(y_values_smooth), y_values_smooth])
+
 			else:
 				tr_lines.append(data)
 		except FileNotFoundError:

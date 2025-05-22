@@ -21,8 +21,8 @@ y_arg = 'lmb'
 # y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 y_values = np.linspace(start = 0, stop = 0.5, num = 50)
 
-beta_values = [5, 10]
-M_values = [150, 100]
+beta_values = [5,10]
+M_values = [150,100]
 c_values = [0.8, 0.9, 0.95]
 
 disable = False
@@ -53,8 +53,8 @@ for idx_c, cutoff in enumerate(c_values):
                                               y_arg=y_arg, x_values=x_values, y_values=y_values, beta = beta_v,
                                               M = M_values[idx_b], **kwargs)
 
-        c = gridvec_toplot(ax, 'dis', m_array_trials, x_arg, y_arg, 0, 0.3, 0, 0.5, cutoff = cutoff,
-                       beta = beta_v, H = kwargs['H'])
+        c = gridvec_toplot(ax, 'dis', m_array_trials, 0, 0.3, 0, 0.5, cutoff = cutoff,
+                       beta = beta_v)
 
         fig.colorbar(c, ax = ax)
 
