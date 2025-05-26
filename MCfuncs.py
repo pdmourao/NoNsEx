@@ -479,12 +479,13 @@ def gridvec_toplot(ax, state, m_array, limx0, limx1, limy0, limy1, cutoff, aspec
 	# vec_for_imshow = np.transpose(success_av)
 	print(f'Calculated success rates in {time() - t} seconds.')
 
-	input_str = '_'.join([f'{key}{int(1000*value)}' for key, value in kwargs.items() if not np.isinf(value)])
+	input_str = '_'.join([f'{key}{int(1000*value)}' if not np.isinf(value) else f'{key}inf' for key, value in kwargs.items()])
 	disname = f'discurve_{input_str}'
 	mixname = f'mixcurve_{input_str}'
-	cutoffname = f'magdiscurve_{input_str}_c{int(1000 * cutoff)}'
 
+	cutoffname = f'magdiscurve_{input_str}_c{int(1000 * cutoff)}'
 	filesfromM = [disname, mixname, cutoffname]
+
 	osfilesfromM = [os.path.join('TransitionData', file) for file in filesfromM]
 	colorsfromM = ['red', 'blue', 'black']
 	stylesfromM = ['solid', 'solid', 'dashed']

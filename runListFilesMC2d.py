@@ -4,13 +4,13 @@ from storage import npz_file_finder
 from FPfields import m_in
 import json
 
-directory = 'MC2d_Lb'
-excluded = ['beta', 'lmb']
+directory = 'MC2d'
+excluded = ['rho', 'lmb']
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 beta_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
 
-for file in npz_file_finder(directory):
+for file in npz_file_finder(directory, beta = np.inf):
     print('\n' + file)
     file_json = file[:-3] + 'json'
     n_samples = 0
