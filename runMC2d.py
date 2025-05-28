@@ -23,28 +23,29 @@ y_arg = 'lmb'
 # y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 y_values = np.linspace(start = 0, stop = 0.5, num = 50)
 
-disable = False
+disable = True
 
 kwargs = {'neurons': 3000,
           'K': 3,
           'beta': np.inf,
           'H': 0,
-          'M': 50,
+          'M': 150,
           'mixM': 0,
-          'max_it': 30,
+          'max_it': 100,
           'error': 1,
           'av_counter': 1,
           'quality': [1, 1, 1],
           'dynamic': 'sequential',
           'sigma_type': 'mix',
-          'noise_dif': True,
-          'save_n': False
+          'noise_dif': False,
+          'save_n': True,
+          'save_int': True
           }
 
 len_x = len(x_values)
 len_y = len(y_values)
 
-m_array_trials, n_array_trials = MC2d(directory = 'MC2d', disable = disable, n_samples = samples, x_arg = x_arg,
+m_array_trials, n_array_trials, int_array_trials = MC2d(directory = 'MC2d', disable = disable, n_samples = samples, x_arg = x_arg,
                                       y_arg = y_arg, x_values = x_values, y_values = y_values, **kwargs)
 
 cutoff = 0.8

@@ -38,7 +38,8 @@ kwargs = {'neurons': 3000,
           'dynamic': 'parallel',
           'sigma_type': 'mix',
           'noise_dif': False,
-          'save_n': False
+          'save_n': False,
+          'save_int': False
           }
 
 len_x = len(x_values)
@@ -49,7 +50,7 @@ fig, axs = plt.subplots(len(c_values), len(beta_values), squeeze = False)
 for idx_c, cutoff in enumerate(c_values):
     for idx_b, beta_v in enumerate(beta_values):
         ax = axs[idx_c, idx_b]
-        m_array_trials, n_array_trials = MC2d(directory='MC2d', disable=disable, n_samples=0, x_arg=x_arg,
+        m_array_trials, n_array_trials, int_array_trials = MC2d(directory='MC2d', disable=disable, n_samples=0, x_arg=x_arg,
                                               y_arg=y_arg, x_values=x_values, y_values=y_values, beta = beta_v,
                                               M = M_values[idx_b], **kwargs)
 

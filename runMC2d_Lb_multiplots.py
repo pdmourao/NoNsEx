@@ -40,7 +40,8 @@ kwargs = {'neurons': 5000,
           'dynamic': 'parallel',
           'sigma_type': 'mix',
           'noise_dif': False,
-          'save_n': False
+          'save_n': False,
+          'save_int': False
           }
 
 len_x = len(x_values)
@@ -51,7 +52,7 @@ fig, axs = plt.subplots(len(rho_values), len(c_values), squeeze = False)
 for idx_r, rho_v in enumerate(rho_values):
     for idx_c, cutoff in enumerate(c_values):
         ax = axs[idx_r,idx_c]
-        m_array_trials, n_array_trials = MC2d_Lb(directory='MC2d_Lb', disable=disable, n_samples=0, rho = rho_v,
+        m_array_trials, n_array_trials, int_array_trials = MC2d_Lb(directory='MC2d_Lb', disable=disable, n_samples=0, rho = rho_v,
                                               **kwargs)
 
         c = gridvec_toplot(ax, 'dis', m_array_trials, 0, 0.5, 1, 25, cutoff = cutoff,

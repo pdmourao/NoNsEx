@@ -171,10 +171,12 @@ class HopfieldMC:
         mags = [self.mattis(state)]
         ex_mags = [self.ex_mags(state)]
 
+        saved_idx = 0
         for idx in tqdm(range(max_it), disable = disable):
+            saved_idx = idx + 1
             prev_state = state
             state = dynamics(beta = beta, J = J, h = H * self.h, sigma = state, dynamic = dynamic, dyn_rng = sim_rng)
-            flips = np.sum(np.abs(state - prev_state))
+            flips = np.sum(np.abs(state - prev_state))/2
             mags.append(self.mattis(state))
             if prints and disable:
                 print(self.mattis(state))
@@ -191,9 +193,9 @@ class HopfieldMC:
                     break
 
         if cut:
-            return mags[-av_counter:], ex_mags[-av_counter:]
+            return mags[-av_counter:], ex_mags[-av_counter:], saved_idx
         else:
-            return mags, ex_mags
+            return mags, ex_mags, saved_idx
 
     # Method mattis returns an L x L array of the magnetizations with respect to the first L patterns
     def mattis(self, sigma):

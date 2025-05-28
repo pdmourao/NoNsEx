@@ -15,7 +15,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 50
+samples = 0
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
@@ -37,19 +37,20 @@ kwargs = {'neurons': 5000,
           'dynamic': 'parallel',
           'sigma_type': 'mix',
           'noise_dif': False,
-          'save_n': False
+          'save_n': False,
+          'save_int': False
           }
 
 len_l = len(l_values)
 len_y = len(y_values)
 
-m_array_trials, n_array_trials = MC2d_Lb(directory = 'MC2d_Lb', disable = disable, n_samples = samples, **kwargs)
+m_array_trials, n_array_trials, int_array_trials = MC2d_Lb(directory = 'MC2d_Lb', disable = disable, n_samples = samples, **kwargs)
 
 cutoff = 0.95
 
 fig, ax = plt.subplots(1)
-gridvec_toplot(ax, 'dis', m_array_trials, 'lmb', 'beta', limx0 = l_values[0], limx1 = l_values[-1],
-               limy0 = y_values[0], limy1 = y_values[-1], cutoff = cutoff, rho = 50, H = 0, interpolate = 'y')
+gridvec_toplot(ax, 'dis', m_array_trials, limx0 = l_values[0], limx1 = l_values[-1],
+               limy0 = y_values[0], limy1 = y_values[-1], cutoff = cutoff, rho = 0.05, interpolate = 'y')
 ax.invert_yaxis()
 ax.set_xlabel(fp.arg_to_label['lmb'])
 ax.set_ylabel(fp.arg_to_label['beta'])
