@@ -176,7 +176,7 @@ class HopfieldMC:
             saved_idx = idx + 1
             prev_state = state
             state = dynamics(beta = beta, J = J, h = H * self.h, sigma = state, dynamic = dynamic, dyn_rng = sim_rng)
-            flips = np.sum(np.abs(state - prev_state))/2
+            flips = np.sum(np.abs(state.astype(int) - prev_state.astype(int)))//2
             mags.append(self.mattis(state))
             if prints and disable:
                 print(self.mattis(state))

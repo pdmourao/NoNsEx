@@ -23,7 +23,7 @@ y_arg = 'lmb'
 # y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 y_values = np.linspace(start = 0, stop = 0.5, num = 50)
 
-disable = True
+disable = False
 
 kwargs = {'neurons': 3000,
           'K': 3,
