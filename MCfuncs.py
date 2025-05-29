@@ -37,6 +37,144 @@ def gJprod(g, J):
     return np.transpose(np.transpose(J, [1, 3, 0, 2]) * g, [2, 0, 3, 1])
 
 
+def SplittingExperiment(n_samples, rho_values,  disable = False, **kwargs):
+
+    directory = 'ToSplit_Or_NotToSplit'
+
+    len_rho = len(rho_values)
+
+
+    inputs = {**kwargs, 'rho': rho_values}
+
+    npz_files = npz_file_finder(directory=directory, prints=False, **inputs)
+    if len(npz_files) > 1:
+        print('Warning: more than 1 experiments found for given inputs.')
+
+    try:
+        file_npz = npz_files[0]
+        with np.load(file_npz) as data_inputs:
+            entropy_from_os = data_inputs['entropy']
+        print('File found!')
+        if n_samples > 0:
+            print('Restarting...')
+        samples_present = len([file for file in os.listdir(directory) if
+                               file_npz[:-4] in os.path.join(directory, file) and file[-5:] == 'm.npy'])
+        print(f'There are {samples_present} sample(s) present')
+        if n_samples == 0:
+            if samples_present > 0:
+                last_sample = np.load(file_npz[:-4] + f'_sample{samples_present - 1}_m.npy')
+                if len(last_sample) < len_rho:
+                    samples_present -= 1
+            if samples_present > 0:
+                n_samples = samples_present
+            else:
+                raise Exception('No samples present. Compute some first.')
+
+    except IndexError:
+        print('No experiments found for given inputs. Starting one.')
+        if n_samples == 0:
+            raise Exception('No complete samples present. Compute some first.')
+        file_npz = os.path.join(directory, f'MCSplit_{len_rho}_{int(time())}.npz')
+        entropy_from_os = np.random.SeedSequence().entropy
+        inputs['entropy'] = entropy_from_os
+        np.savez(file_npz, **inputs)
+
+    mattis = np.zeros((n_samples, len_rho, 3, 3))
+    mattis_ex = np.zeros((n_samples, len_rho, 3, 3))
+    max_ints = np.zeros((n_samples, len_rho), dtype=int)
+
+    for idx_s in range(n_samples):
+
+        t0 = time()
+
+        entropy = (entropy_from_os, idx_s)
+
+        rng_seeds = np.random.SeedSequence(entropy).spawn(len_rho*2)
+        print(f'Generated seeds for simulate in {round(time() - t0, 3)} s.')
+
+        t = time()
+        print(f'\nSolving system {idx_s + 1}/{n_samples}...')
+
+        file_npy_m = file_npz[:-4] + f'_sample{idx_s}_m.npy'
+        file_npy_n = file_npz[:-4] + f'_sample{idx_s}_n.npy'
+        file_npy_ints = file_npz[:-4] + f'_sample{idx_s}_ints.npy'
+
+        try:
+
+            with np.load(file_npy_m) as data_m:
+                mattis_flat = data_m
+
+            with np.load(file_npy_n) as data_n:
+                mattis_flat_ex = data_n
+            assert len(mattis_flat_ex) == len(mattis_flat), 'Sample files corrupted. Fix or delete.'
+
+            with np.load(file_npy_ints) as data_ints:
+                flat_ints = data_ints
+            assert len(flat_ints) == len(mattis_flat), 'Sample files corrupted. Fix or delete.'
+
+        except FileNotFoundError:
+            mattis_flat = []
+            mattis_flat_ex = []
+            flat_ints = []
+
+        if len(mattis_flat) < len_rho:
+            if len(mattis_flat) == 0:
+                print('Sample not present.')
+            else:
+                print(f'Sample incomplete ({len(mattis_flat)}/{len_rho})')
+
+        with tqdm(total=len_rho, disable=disable) as pbar:
+            for idx_rho, rho_v in enumerate(rho_values):
+
+                inputs['rho'] = rho_v
+                try:
+                    mattis[idx_s, idx_rho] = mattis_flat[idx_rho]
+                    mattis_ex[idx_s, idx_rho] = mattis_flat_ex[idx_rho]
+                    max_ints[idx_s, idx_rho] = flat_ints[idx_rho]
+                except IndexError:
+
+                    split = hop(rngSS=rng_seeds[2*idx_rho], mixM = 0, quality = [1,1,1], sigma_type = 'mix', noise_dif = True, **inputs)
+
+                    inputs['K'] = split.pat
+                    inputs['rho'] = split.rho/3
+                    inputs['M'] = 3*split.M
+                    jointblur = np.full(shape = (split.L, inputs['M'], split.K, split.N),
+                                        fill_value = np.concatenate(tuple(layer for layer in split.blur)))
+
+
+
+                    notsplit = hop(rngSS=rng_seeds[2 * idx_rho+1], mixM = 0, quality = [1,1,1], sigma_type='mix',
+                                   blur=jointblur, noise_dif=False, **inputs)
+                    assert split.sigma == notsplit.sigma, 'Problem with the initial states.'
+
+                    output_m_mean = np.mean(output_m, axis=0)
+                    output_n_mean = np.mean(output_n, axis=0)
+
+                    mattis[idx_s, idx_rho] = output_m_mean
+                    mattis_ex[idx_s, idx_rho] = output_n_mean
+                    max_ints[idx_s, idx_rho] = ints
+
+                    with NpyAppendArray(file_npy_m) as npyf:
+                        npyf.append(output_m_mean.reshape((1, 3, 3)))
+
+                    with NpyAppendArray(file_npy_n) as npyf:
+                        npyf.append(output_n_mean.reshape((1, 3, 3)))
+                    with NpyAppendArray(file_npy_ints) as npyf:
+                        npyf.append(np.array([ints]))
+
+                if disable:
+                    print(rf'$\rho$ = {round(rho_v, 2)}, ran to {max_ints[idx_s, idx_rho]} iteration(s).')
+                # print(f'MaxSD = {np.max(np.std(output, axis=0))}')
+                # print(f'MaxDif = {np.max(np.sum(np.diff(output, axis=0), axis=0))}')
+                else:
+                    pbar.update(1)
+
+        t = time() - t
+        print(f'System ran in {round(t / 60)} minutes.')
+
+    return mattis, mattis_ex, max_ints
+
+
 def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
                    dynamic, L=3, h=None, rngSS=np.random.SeedSequence(), prints=False, cut=False):
     t = time()
@@ -54,7 +192,6 @@ def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif
 
 def MC2d(directory, save_n, save_int, n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_type,
          silent=False, disable=False, **kwargs):
-    n_samples_original = n_samples
 
     if silent:
         disable = True

@@ -49,6 +49,7 @@ class HopfieldMC:
         if isinstance(K, int):
             self.pat = rng.choice([-1, 1], (K, self.N))
         else:
+            print('Loading the other system with the same patterns...')
             self.pat = K
         # Holds number of patterns
         self.K = np.shape(self.pat)[0]
@@ -78,6 +79,7 @@ class HopfieldMC:
                 self.blur = np.full(shape = (self.L, sizeM, self.K, self.N), fill_value = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                              size=(sizeM, self.K, self.N)))
         else:
+            print('Setting up the same examples...')
             self.blur = blur
 
         self.ex = self.blur[:,:self.M] * self.pat
@@ -126,6 +128,7 @@ class HopfieldMC:
                 state[layer] = np.sign(input_ex_av[layer, layer])
         elif 'mix' in sigma_type:
             state = np.sign(np.sum(input_ex_av, axis = 1))
+
         self.input = input_ex_av
         self.sigma = state*state_blur
 
