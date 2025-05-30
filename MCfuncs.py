@@ -4,9 +4,8 @@ from tqdm import tqdm
 from time import time
 import json
 import os
-from storage import npz_file_finder
+from storage import npz_file_finder, mathToPython
 from npy_append_array import NpyAppendArray
-from functools import reduce
 from scipy.interpolate import make_interp_spline
 from matplotlib import pyplot as plt
 
@@ -37,23 +36,32 @@ def gJprod(g, J):
     return np.transpose(np.transpose(J, [1, 3, 0, 2]) * g, [2, 0, 3, 1])
 
 
-def SplittingExperiment(n_samples, rho_values,  disable = False, **kwargs):
+def SplittingExperiment(suf, n_samples, rho_values, neurons, K, M, max_it, error, av_counter, H = 0, mixM = 0, sigma_type ='mix',
+                        quality = [1,1,1], dynamic = 'sequential', minlmb = 0, minT = 1e-3, disable = False):
 
     directory = 'ToSplit_Or_NotToSplit'
 
     len_rho = len(rho_values)
 
+    interpolatorT = make_interp_spline(*mathToPython('maxT'+suf,'optpar'))
+    interpolatorL = make_interp_spline(*mathToPython('maxL'+suf,'optpar'))
 
-    inputs = {**kwargs, 'rho': rho_values}
+    inputs_sys = {'neurons': neurons, 'K': K, 'M': M, 'quality': quality, 'mixM': mixM, 'rho': rho_values}
+    inputs_sys_notsplit = dict(inputs_sys)
+    inputs_sys_notsplit['M'] = 3*M
+    inputs_sim = {'max_it': max_it, 'error': error, 'av_counter': av_counter, 'H': H}
+    inputs_json = {'suf': suf, 'sigma_type': sigma_type, 'dynamic': dynamic}
+    all_inputs = {**inputs_sys, **inputs_sim, **inputs_json, 'minlmb': minlmb, 'minT': minT}
 
-    npz_files = npz_file_finder(directory=directory, prints=False, **inputs)
+    npz_files = npz_file_finder(directory=directory, prints=False, **all_inputs)
     if len(npz_files) > 1:
         print('Warning: more than 1 experiments found for given inputs.')
 
     try:
         file_npz = npz_files[0]
-        with np.load(file_npz) as data_inputs:
-            entropy_from_os = data_inputs['entropy']
+        with open(file_npz[:-3] + 'json', mode="r", encoding="utf-8") as json_file:
+            data = json.load(json_file)
+            entropy_from_os = int(data['entropy'])
         print('File found!')
         if n_samples > 0:
             print('Restarting...')
@@ -76,12 +84,17 @@ def SplittingExperiment(n_samples, rho_values,  disable = False, **kwargs):
             raise Exception('No complete samples present. Compute some first.')
         file_npz = os.path.join(directory, f'MCSplit_{len_rho}_{int(time())}.npz')
         entropy_from_os = np.random.SeedSequence().entropy
-        inputs['entropy'] = entropy_from_os
-        np.savez(file_npz, **inputs)
+        np.savez(file_npz, **inputs_sys, **inputs_sim, minlmb = minlmb, minT = minT)
+        with open(f'{file_npz[:-3]}json', mode="w", encoding="utf-8") as json_file:
+            inputs_json['entropy'] = str(entropy_from_os)
+            json.dump(inputs_json, json_file)
 
-    mattis = np.zeros((n_samples, len_rho, 3, 3))
-    mattis_ex = np.zeros((n_samples, len_rho, 3, 3))
-    max_ints = np.zeros((n_samples, len_rho), dtype=int)
+    mattis_split = np.zeros((n_samples, len_rho, 3, 3))
+    mattis_ex_split = np.zeros((n_samples, len_rho, 3, 3))
+    max_ints_split = np.zeros((n_samples, len_rho), dtype=int)
+    mattis_notsplit = np.zeros((n_samples, len_rho, 3, 3))
+    mattis_ex_notsplit = np.zeros((n_samples, len_rho, 3, 3))
+    max_ints_notsplit = np.zeros((n_samples, len_rho), dtype=int)
 
     for idx_s in range(n_samples):
 
@@ -95,75 +108,114 @@ def SplittingExperiment(n_samples, rho_values,  disable = False, **kwargs):
         t = time()
         print(f'\nSolving system {idx_s + 1}/{n_samples}...')
 
-        file_npy_m = file_npz[:-4] + f'_sample{idx_s}_m.npy'
-        file_npy_n = file_npz[:-4] + f'_sample{idx_s}_n.npy'
-        file_npy_ints = file_npz[:-4] + f'_sample{idx_s}_ints.npy'
+        file_npy_m_split = file_npz[:-4] + f'_sample{idx_s}_m_split.npy'
+        file_npy_n_split = file_npz[:-4] + f'_sample{idx_s}_n_split.npy'
+        file_npy_ints_split = file_npz[:-4] + f'_sample{idx_s}_ints_split.npy'
+        file_npy_m_notsplit = file_npz[:-4] + f'_sample{idx_s}_m_notsplit.npy'
+        file_npy_n_notsplit = file_npz[:-4] + f'_sample{idx_s}_n_notsplit.npy'
+        file_npy_ints_notsplit = file_npz[:-4] + f'_sample{idx_s}_ints_notsplit.npy'
 
         try:
 
-            with np.load(file_npy_m) as data_m:
-                mattis_flat = data_m
+            mattis_flat_split = np.load(file_npy_m_split)
+            mattis_flat_notsplit = np.load(file_npy_m_notsplit)
 
-            with np.load(file_npy_n) as data_n:
-                mattis_flat_ex = data_n
-            assert len(mattis_flat_ex) == len(mattis_flat), 'Sample files corrupted. Fix or delete.'
+            mattis_flat_ex_split = np.load(file_npy_n_split)
+            assert len(mattis_flat_ex_split) == len(mattis_flat_split), 'Sample files corrupted (exsplit). Fix or delete.'
 
-            with np.load(file_npy_ints) as data_ints:
-                flat_ints = data_ints
-            assert len(flat_ints) == len(mattis_flat), 'Sample files corrupted. Fix or delete.'
+            mattis_flat_ex_notsplit = np.load(file_npy_n_notsplit)
+            assert len(mattis_flat_ex_notsplit) == len(mattis_flat_split), 'Sample files corrupted (exnotsplit). Fix or delete.'
+
+            flat_ints_split = np.load(file_npy_ints_split)
+            assert len(flat_ints_split) == len(mattis_flat_split), 'Sample files corrupted (ints split). Fix or delete.'
+
+            flat_ints_notsplit = np.load(file_npy_ints_notsplit)
+            assert len(flat_ints_notsplit) == len(mattis_flat_split), 'Sample files corrupted (ints split). Fix or delete.'
 
         except FileNotFoundError:
-            mattis_flat = []
-            mattis_flat_ex = []
-            flat_ints = []
+            mattis_flat_split = []
+            mattis_flat_ex_split = []
+            flat_ints_split = []
+            mattis_flat_notsplit = []
+            mattis_flat_ex_notsplit = []
+            flat_ints_notsplit = []
 
-        if len(mattis_flat) < len_rho:
-            if len(mattis_flat) == 0:
+        if len(mattis_flat_split) < len_rho:
+            if len(mattis_flat_split) == 0:
                 print('Sample not present.')
             else:
-                print(f'Sample incomplete ({len(mattis_flat)}/{len_rho})')
+                print(f'Sample incomplete ({len(mattis_flat_split)}/{len_rho})')
 
         with tqdm(total=len_rho, disable=disable) as pbar:
             for idx_rho, rho_v in enumerate(rho_values):
 
-                inputs['rho'] = rho_v
+                inputs_sys['rho'] = rho_v
+                inputs_sys_notsplit['rho'] = rho_v/3
                 try:
-                    mattis[idx_s, idx_rho] = mattis_flat[idx_rho]
-                    mattis_ex[idx_s, idx_rho] = mattis_flat_ex[idx_rho]
-                    max_ints[idx_s, idx_rho] = flat_ints[idx_rho]
+                    mattis_split[idx_s, idx_rho] = mattis_flat_split[idx_rho]
+                    mattis_ex_split[idx_s, idx_rho] = mattis_flat_ex_split[idx_rho]
+                    max_ints_split[idx_s, idx_rho] = flat_ints_split[idx_rho]
+
+                    mattis_notsplit[idx_s, idx_rho] = mattis_flat_notsplit[idx_rho]
+                    mattis_ex_notsplit[idx_s, idx_rho] = mattis_flat_ex_notsplit[idx_rho]
+                    max_ints_notsplit[idx_s, idx_rho] = flat_ints_notsplit[idx_rho]
                 except IndexError:
+                    lmb_split = max(interpolatorL(rho_v), minlmb)
+                    lmb_notsplit = max(interpolatorL(rho_v/3), minlmb)
 
-                    split = hop(rngSS=rng_seeds[2*idx_rho], mixM = 0, quality = [1,1,1], sigma_type = 'mix', noise_dif = True, **inputs)
+                    beta_split = 1/interpolatorT(rho_v) if interpolatorT(rho_v) > minT else np.inf
+                    beta_notsplit = 1 / interpolatorT(rho_v/3) if interpolatorT(rho_v/3) > minT else np.inf
 
-                    inputs['K'] = split.pat
-                    inputs['rho'] = split.rho/3
-                    inputs['M'] = 3*split.M
-                    jointblur = np.full(shape = (split.L, inputs['M'], split.K, split.N),
+                    noise_split = rng_seeds[2 * idx_rho]
+                    noise_notsplit = rng_seeds[2 * idx_rho + 1]
+
+                    split = hop(rngSS=noise_split, lmb = lmb_split, sigma_type = 'mix', noise_dif = True, **inputs_sys)
+
+                    inputs_sys_notsplit['K'] = split.pat
+
+                    jointblur = np.full(shape = (split.L, inputs_sys_notsplit['M'], split.K, split.N),
                                         fill_value = np.concatenate(tuple(layer for layer in split.blur)))
 
+                    notsplit = hop(rngSS=noise_notsplit, lmb = lmb_notsplit, sigma_type='mix', blur=jointblur,
+                                   noise_dif=False, **inputs_sys_notsplit)
+                    assert np.array_equal(split.sigma, notsplit.sigma), 'Problem with the initial states.'
 
+                    output_m_split, output_n_split, ints_split = split.simulate(beta = beta_split, dynamic = dynamic, sim_rngSS = noise_split.spawn(1)[0], cut = True, **inputs_sim)
+                    output_m_notsplit, output_n_notsplit, ints_notsplit = notsplit.simulate(beta = beta_notsplit, dynamic = dynamic, sim_rngSS = noise_notsplit.spawn(1)[0], cut = True, **inputs_sim)
 
-                    notsplit = hop(rngSS=rng_seeds[2 * idx_rho+1], mixM = 0, quality = [1,1,1], sigma_type='mix',
-                                   blur=jointblur, noise_dif=False, **inputs)
-                    assert split.sigma == notsplit.sigma, 'Problem with the initial states.'
+                    output_m_split_mean = np.mean(output_m_split, axis=0)
+                    output_n_split_mean = np.mean(output_n_split, axis=0)
+                    output_m_notsplit_mean = np.mean(output_m_notsplit, axis=0)
+                    output_n_notsplit_mean = np.mean(output_n_notsplit, axis=0)
 
-                    output_m_mean = np.mean(output_m, axis=0)
-                    output_n_mean = np.mean(output_n, axis=0)
+                    mattis_split[idx_s, idx_rho] = output_m_split_mean
+                    mattis_ex_split[idx_s, idx_rho] = output_n_split_mean
+                    max_ints_split[idx_s, idx_rho] = ints_split
 
-                    mattis[idx_s, idx_rho] = output_m_mean
-                    mattis_ex[idx_s, idx_rho] = output_n_mean
-                    max_ints[idx_s, idx_rho] = ints
+                    mattis_notsplit[idx_s, idx_rho] = output_m_notsplit_mean
+                    mattis_ex_notsplit[idx_s, idx_rho] = output_n_notsplit_mean
+                    max_ints_notsplit[idx_s, idx_rho] = ints_notsplit
 
-                    with NpyAppendArray(file_npy_m) as npyf:
-                        npyf.append(output_m_mean.reshape((1, 3, 3)))
+                    with NpyAppendArray(file_npy_m_split) as npyf:
+                        npyf.append(output_m_split_mean.reshape((1, 3, 3)))
 
-                    with NpyAppendArray(file_npy_n) as npyf:
-                        npyf.append(output_n_mean.reshape((1, 3, 3)))
-                    with NpyAppendArray(file_npy_ints) as npyf:
-                        npyf.append(np.array([ints]))
+                    with NpyAppendArray(file_npy_n_split) as npyf:
+                        npyf.append(output_n_split_mean.reshape((1, 3, 3)))
+
+                    with NpyAppendArray(file_npy_ints_split) as npyf:
+                        npyf.append(np.array([ints_split]))
+
+                    with NpyAppendArray(file_npy_m_notsplit) as npyf:
+                        npyf.append(output_m_notsplit_mean.reshape((1, 3, 3)))
+
+                    with NpyAppendArray(file_npy_n_notsplit) as npyf:
+                        npyf.append(output_n_notsplit_mean.reshape((1, 3, 3)))
+
+                    with NpyAppendArray(file_npy_ints_notsplit) as npyf:
+                        npyf.append(np.array([ints_notsplit]))
 
                 if disable:
-                    print(rf'$\rho$ = {round(rho_v, 2)}, ran to {max_ints[idx_s, idx_rho]} iteration(s).')
+                    print(rf'$\rho$ = {round(rho_v, 2)}, split and not split systems ran to {max_ints_split[idx_s, idx_rho]} and {max_ints_notsplit[idx_s, idx_rho]} iteration(s), respectively.')
                 # print(f'MaxSD = {np.max(np.std(output, axis=0))}')
                 # print(f'MaxDif = {np.max(np.sum(np.diff(output, axis=0), axis=0))}')
                 else:
@@ -172,7 +224,7 @@ def SplittingExperiment(n_samples, rho_values,  disable = False, **kwargs):
         t = time() - t
         print(f'System ran in {round(t / 60)} minutes.')
 
-    return mattis, mattis_ex, max_ints
+    return mattis_split, mattis_ex_split, max_ints_split, mattis_notsplit, mattis_ex_notsplit, max_ints_notsplit
 
 
 def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
@@ -659,19 +711,14 @@ def gridvec_toplot(ax, state, m_array, limx0, limx1, limy0, limy1, cutoff, aspec
     cutoffname = f'magdiscurve_{input_str}_c{int(1000 * cutoff)}'
     filesfromM = [disname, mixname, cutoffname]
 
-    osfilesfromM = [os.path.join('TransitionData', file) for file in filesfromM]
     colorsfromM = ['red', 'blue', 'black']
     stylesfromM = ['solid', 'solid', 'dashed']
     interp_funcs = []
     tr_lines = []
 
-    for idx_f, file in enumerate(osfilesfromM):
+    for idx_f, file in enumerate(filesfromM):
         try:
-            with open(file, 'rb') as f:
-                depth = np.fromfile(f, dtype=np.dtype('int32'), count=1)[0]
-                dims = np.fromfile(f, dtype=np.dtype('int32'), count=depth)
-                data = np.transpose(np.reshape(np.fromfile(f, dtype=np.dtype('float64'),
-                                                           count=reduce(lambda x, y: x * y, dims)), dims))
+            data = mathToPython(file, 'TransitionData')
             if interpolate == 'x':
                 interpolator = make_interp_spline(*data)
                 interp_funcs.append(interpolator)

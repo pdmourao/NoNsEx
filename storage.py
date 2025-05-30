@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import json
+from functools import reduce
 
 def npz_file_finder(directory, *args, prints = True, file_spec ='', **kwargs):
 
@@ -42,3 +43,15 @@ def npz_file_finder(directory, *args, prints = True, file_spec ='', **kwargs):
         print(f'{len(file_list)} file(s) found.')
 
     return file_list
+
+def mathToPython(file, directory = None):
+    if directory is None:
+        fname = file
+    else:
+        fname = os.path.join(directory, file)
+    with open(fname, 'rb') as f:
+        depth = np.fromfile(f, dtype=np.dtype('int32'), count=1)[0]
+        dims = np.fromfile(f, dtype=np.dtype('int32'), count=depth)
+        data = np.transpose(np.reshape(np.fromfile(f, dtype=np.dtype('float64'),
+                                                   count=reduce(lambda x, y: x * y, dims)), dims))
+    return data

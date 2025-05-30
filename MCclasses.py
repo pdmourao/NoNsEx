@@ -49,7 +49,6 @@ class HopfieldMC:
         if isinstance(K, int):
             self.pat = rng.choice([-1, 1], (K, self.N))
         else:
-            print('Loading the other system with the same patterns...')
             self.pat = K
         # Holds number of patterns
         self.K = np.shape(self.pat)[0]
@@ -79,7 +78,6 @@ class HopfieldMC:
                 self.blur = np.full(shape = (self.L, sizeM, self.K, self.N), fill_value = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                              size=(sizeM, self.K, self.N)))
         else:
-            print('Setting up the same examples...')
             self.blur = blur
 
         self.ex = self.blur[:,:self.M] * self.pat
@@ -158,7 +156,7 @@ class HopfieldMC:
 
     # It returns the full history of states
     def simulate(self, beta, H, max_it, error, av_counter, dynamic, J = None, disable = True, prints = False,
-                 cut = False, sim_rngSS = None):
+                 cut = True, sim_rngSS = None):
 
         t = time()
 
