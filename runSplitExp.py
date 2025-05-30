@@ -14,10 +14,10 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 0
+samples = 50
 interpolate_bool = True
 
-rho_values = np.linspace(start = 0.2, stop = 0, num = 200, endpoint = False)[::-1]
+rho_values = np.linspace(start = 0.5, stop = 0, num = 200, endpoint = False)[::-1]
 len_rho= len(rho_values)
 
 disable = False
@@ -29,10 +29,10 @@ kwargs = {'neurons': 3000,
           'M': 50,
           'mixM': 0,
           'max_it': 30,
-          'error': 0.001,
+          'error': 0.002,
           'av_counter': 3,
           'quality': [1, 1, 1],
-          'minlmb': 0,
+          'minlmb': 0.07,
           'minT': 1e-3,
           'dynamic': 'sequential',
           'sigma_type': 'mix',
@@ -41,7 +41,7 @@ kwargs = {'neurons': 3000,
 
 m_array_trials_split, n_array_trials_split, int_array_trials_split, m_array_trials_notsplit, n_array_trials_notsplit, int_array_trials_notsplit = SE(disable = disable, n_samples = samples, **kwargs)
 
-cutoff = 0.8
+cutoff = 0.6
 all_samples = len(m_array_trials_split)
 success_array_split = np.zeros((all_samples, len_rho))
 success_array_notsplit = np.zeros((all_samples, len_rho))
