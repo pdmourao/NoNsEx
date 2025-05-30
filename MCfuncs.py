@@ -66,11 +66,11 @@ def SplittingExperiment(suf, n_samples, rho_values, neurons, K, M, max_it, error
         if n_samples > 0:
             print('Restarting...')
         samples_present = len([file for file in os.listdir(directory) if
-                               file_npz[:-4] in os.path.join(directory, file) and file[-5:] == 'm.npy'])
+                               file_npz[:-4] in os.path.join(directory, file) and 'm_split.npy' in file])
         print(f'There are {samples_present} sample(s) present')
         if n_samples == 0:
             if samples_present > 0:
-                last_sample = np.load(file_npz[:-4] + f'_sample{samples_present - 1}_m.npy')
+                last_sample = np.load(file_npz[:-4] + f'_sample{samples_present - 1}_m_split.npy')
                 if len(last_sample) < len_rho:
                     samples_present -= 1
             if samples_present > 0:
@@ -160,6 +160,7 @@ def SplittingExperiment(suf, n_samples, rho_values, neurons, K, M, max_it, error
                     mattis_ex_notsplit[idx_s, idx_rho] = mattis_flat_ex_notsplit[idx_rho]
                     max_ints_notsplit[idx_s, idx_rho] = flat_ints_notsplit[idx_rho]
                 except IndexError:
+
                     lmb_split = max(interpolatorL(rho_v), minlmb)
                     lmb_notsplit = max(interpolatorL(rho_v/3), minlmb)
 
@@ -178,6 +179,8 @@ def SplittingExperiment(suf, n_samples, rho_values, neurons, K, M, max_it, error
 
                     notsplit = hop(rngSS=noise_notsplit, lmb = lmb_notsplit, sigma_type='mix', blur=jointblur,
                                    noise_dif=False, **inputs_sys_notsplit)
+
+
                     assert np.array_equal(split.sigma, notsplit.sigma), 'Problem with the initial states.'
 
                     output_m_split, output_n_split, ints_split = split.simulate(beta = beta_split, dynamic = dynamic, sim_rngSS = noise_split.spawn(1)[0], cut = True, **inputs_sim)
