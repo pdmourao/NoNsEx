@@ -29,7 +29,7 @@ kwargs = {'neurons': 3000,
           'K': 3,
           'beta': np.inf,
           'H': 0,
-          'M': 150,
+          'M': 50,
           'mixM': 0,
           'max_it': 100,
           'error': 1,
@@ -37,7 +37,7 @@ kwargs = {'neurons': 3000,
           'quality': [1, 1, 1],
           'dynamic': 'sequential',
           'sigma_type': 'mix',
-          'noise_dif': False,
+          'noise_dif': True,
           'save_n': True,
           'save_int': True
           }
@@ -48,7 +48,7 @@ len_y = len(y_values)
 m_array_trials, n_array_trials, int_array_trials = MC2d(directory = 'MC2d', disable = disable, n_samples = samples, x_arg = x_arg,
                                       y_arg = y_arg, x_values = x_values, y_values = y_values, **kwargs)
 
-cutoff = 0.8
+cutoff = 0.9
 # print(m_array_trials)
 
 fig, ax = plt.subplots(1)
@@ -67,3 +67,15 @@ beta_title = rf'\infty' if np.isinf(kwargs['beta']) else kwargs['beta']
 
 ax.set_title(rf'$\beta = {beta_title}$')
 plt.show()
+
+# print(np.max(int_array_trials, axis=0))
+fig, ax = plt.subplots(1)
+vec_for_imshow = np.transpose(np.flip(np.max(int_array_trials, axis=0), axis=-1))
+
+ax.imshow(vec_for_imshow, cmap='Reds', vmin=0, vmax=kwargs['max_it'], aspect='auto', interpolation='nearest',
+              extent=[x_values[0], x_values[-1], y_values[0], y_values[-1]])
+
+ax.set_xlim(x_values[0], x_values[-1])
+ax.set_ylim(y_values[0], y_values[-1])
+plt.show()
+
