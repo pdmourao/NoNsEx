@@ -14,7 +14,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 50
+samples = 100
 interpolate_bool = True
 
 rho_values = np.linspace(start = 0.5, stop = 0, num = 200, endpoint = False)[::-1]
@@ -41,7 +41,7 @@ kwargs = {'neurons': 3000,
 
 m_array_trials_split, n_array_trials_split, int_array_trials_split, m_array_trials_notsplit, n_array_trials_notsplit, int_array_trials_notsplit = SE(disable = disable, n_samples = samples, **kwargs)
 
-cutoff = 0.6
+cutoff = 0.8
 all_samples = len(m_array_trials_split)
 success_array_split = np.zeros((all_samples, len_rho))
 success_array_notsplit = np.zeros((all_samples, len_rho))
@@ -59,8 +59,8 @@ success_av_notsplit = np.average(success_array_notsplit, axis=0)
 int_split_av = np.average(int_array_trials_split, axis=0)
 int_notsplit_av = np.average(int_array_trials_notsplit, axis=0)
 
-plt.plot(rho_values, success_av_split, color = 'yellow')
-plt.plot(rho_values, success_av_notsplit, color = 'green')
+plt.plot(rho_values/3, success_av_split, color = 'yellow')
+plt.plot(rho_values/3, success_av_notsplit, color = 'green')
 plt.show()
 
 plt.plot(rho_values, int_split_av, color = 'yellow')
