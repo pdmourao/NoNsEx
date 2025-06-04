@@ -27,17 +27,17 @@ disable = False
 
 kwargs = {'neurons': 3000,
           'K': 3,
-          'beta': np.inf,
+          'beta': 10,
           'H': 0,
           'M': 50,
           'mixM': 0,
-          'max_it': 100,
-          'error': 1,
-          'av_counter': 1,
+          'max_it': 30,
+          'error': 0.002,
+          'av_counter': 3,
           'quality': [1, 1, 1],
-          'dynamic': 'sequential',
+          'dynamic': 'parallel',
           'sigma_type': 'mix',
-          'noise_dif': True,
+          'noise_dif': False,
           'save_n': True,
           'save_int': True
           }
@@ -48,7 +48,7 @@ len_y = len(y_values)
 m_array_trials, n_array_trials, int_array_trials = MC2d(directory = 'MC2d', disable = disable, n_samples = samples, x_arg = x_arg,
                                       y_arg = y_arg, x_values = x_values, y_values = y_values, **kwargs)
 
-cutoff = 0.9
+cutoff = 0.8
 # print(m_array_trials)
 
 fig, ax = plt.subplots(1)
