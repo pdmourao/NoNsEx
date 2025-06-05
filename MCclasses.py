@@ -46,11 +46,12 @@ class HopfieldMC:
 
         self.L = L
         # Patterns constructor
-        if isinstance(K, int):
-            self.pat = rng.choice([-1, 1], (K, self.N))
+        if isinstance(K, (int,np.integer)):
+            self.pat = rng.choice([-1, 1], (max(L,K), self.N))
         else:
             self.pat = K
         # Holds number of patterns
+
         self.K = np.shape(self.pat)[0]
         assert self.K >= self.L, 'Should have at least as many patterns as layers.'
 

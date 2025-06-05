@@ -41,7 +41,7 @@ kwargs = {'neurons': 3000,
 
 m_array_trials_split, n_array_trials_split, int_array_trials_split, m_array_trials_notsplit, n_array_trials_notsplit, int_array_trials_notsplit = SE(disable = disable, n_samples = samples, **kwargs)
 
-cutoff = 0.6
+cutoff = 0.75
 all_samples = len(m_array_trials_split)
 success_array_split = np.zeros((all_samples, len_rho))
 success_array_notsplit = np.zeros((all_samples, len_rho))

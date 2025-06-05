@@ -27,7 +27,7 @@ y_values = np.linspace(start = 0, stop = 0.5, num = 50)
 idx_x = 48
 idx_y = 9
 
-print(f'Values: rho = {x_values[idx_x]}, lmb = {y_values[idx_y]}')
+# print(f'Values: rho = {x_values[idx_x]}, lmb = {y_values[idx_y]}')
 
 array_dict = {'beta': np.inf,
               'H': 0,
@@ -74,7 +74,7 @@ except IndexError or FileNotFoundError:
     mattis_from_file = np.zeros((3, 3))
 
 
-print(mattis_from_file)
+# print(mattis_from_file)
 
 rng_seeds1 = np.random.SeedSequence(entropy_from_os).spawn(len_x * len_y)
 rng_seeds2 = np.random.SeedSequence(entropy_from_os).spawn(len_x * len_y)
@@ -83,22 +83,16 @@ t = time()
 # To use to compare
 system1 = hop(rho = x_values[idx_x], lmb = y_values[idx_y], rngSS = rng_seeds1[idx_x * len_y + idx_y], **sys_kwargs)
 
+print(f'Initialized system 1 in {round(time() - t, 3)} s.')
+t = time()
 alt_sys_kwargs = dict(sys_kwargs)
 # To use for new inputs
 system2 = hop(rho = x_values[idx_x], lmb = y_values[idx_y], rngSS = rng_seeds2[idx_x * len_y + idx_y], **alt_sys_kwargs)
-t0 = time()
-print(f'Initialized system in {round(t0 - t, 3)} s.')
+print(f'Initialized system 2 in {round(time() - t, 3)} s.')
 
 print(f'J matrices check: {np.array_equal(system1.J, system2.J)}')
 
-# print(system1.ex_mags(system1.sigma))
-# print(system2.ex_mags(system2.sigma))
-
-# rng1 = np.random.SeedSequence(entropy=entropy).spawn(1)[0]
-# rng2 = np.random.SeedSequence(entropy=entropy).spawn(1)[0]
-print(f'Generated seeds for simulate in {round(time() - t0, 3)} s.')
-
-compare_simulations = True
+compare_simulations = False
 
 if compare_simulations:
 
@@ -109,12 +103,12 @@ if compare_simulations:
     time0 = time()
     print('System 1 running...')
     output1 = system1.simulate(dynamic = dynamic, sim_rngSS = rng_seeds1[idx_x * len_y + idx_y].spawn(1)[0], av_counter = av_counter,
-                               prints = True, **array_dict)[0]
+                               prints = True, cut = False, **array_dict)[0]
     time1 = time()-time0
     time0 = time()
     print('\n System 2 running...')
     output2 = system2.simulate(dynamic = 'sequential', sim_rngSS = rng_seeds2[idx_x * len_y + idx_y].spawn(1)[0], disable = True, prints = True,
-                               av_counter = 2, **alt_array_dict)[0]
+                               av_counter = 2, cut = False, **alt_array_dict)[0]
     time2 = time()-time0
     print(f'\nCheck 1: {np.array_equal(np.mean(output1[-av_counter:], axis = 0), mattis_from_file)}')
     # print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')
