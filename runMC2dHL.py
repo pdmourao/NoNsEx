@@ -13,7 +13,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 50
+samples = 0
 interpolate_bool = True
 
 x_arg = 'lmb'
@@ -48,8 +48,8 @@ len_y = len(y_values)
 m_array_trials, n_array_trials, int_array_trials = MC2d(directory = 'MC2d', disable = disable, n_samples = samples, x_arg = x_arg,
                                       y_arg = y_arg, x_values = x_values, y_values = y_values, **kwargs)
 
-cutoff = 0.8
-# print(m_array_trials)
+cutoff = 0.5
+print(m_array_trials[0,12,1])
 
 fig, ax = plt.subplots(1)
 gridvec_toplot(ax, 'dis', m_array_trials, limx0 = x_values[0], limx1 = x_values[-1],
@@ -60,13 +60,13 @@ if x_arg == 'lmb':
 if y_arg == 'lmb':
     y_arg = 'lambda'
 
-ax.set_xlabel(rf'$\{x_arg}$')
-ax.set_ylabel(rf'$\{y_arg}$')
+#ax.set_xlabel(rf'$\{x_arg}$')
+#ax.set_ylabel(rf'$\{y_arg}$')
 
 beta_title = rf'\infty' if np.isinf(kwargs['beta']) else kwargs['beta']
 
 ax.set_title(rf'$\beta = {beta_title}$')
-plt.show()
+# plt.show()
 
 # print(np.max(int_array_trials, axis=0))
 fig, ax = plt.subplots(1)
@@ -77,5 +77,5 @@ ax.imshow(vec_for_imshow, cmap='Reds', vmin=0, vmax=kwargs['max_it'], aspect='au
 
 ax.set_xlim(x_values[0], x_values[-1])
 ax.set_ylim(y_values[0], y_values[-1])
-plt.show()
+# plt.show()
 

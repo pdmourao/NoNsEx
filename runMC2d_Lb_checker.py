@@ -3,6 +3,7 @@ from time import time
 from storage import npz_file_finder
 import json
 from MCclasses import HopfieldMC as hop
+import sys
 
 t0 = time()
 
@@ -30,7 +31,7 @@ print(f'Values: lmb = {l_values[idx_l]}, beta = {y_values[idx_y]}')
 
 array_dict = {'beta': y_values,
               'H': 0,
-              'max_it': 10,
+              'max_it': 30,
               'error': 0.002,
               }
 
@@ -44,9 +45,10 @@ sys_kwargs = {'neurons': 5000,
               'noise_dif': False
               }
 
-dynamic = 'sequential'
+dynamic = 'parallel'
 save_n = False
-av_counter = 2
+save_int = False
+av_counter = 3
 
 len_l = len(l_values)
 len_y = len(y_values)
@@ -91,11 +93,11 @@ system1 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **
 
 alt_sys_kwargs = dict(sys_kwargs)
 # To use for new inputs
-system2 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **alt_sys_kwargs)
+# system2 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **alt_sys_kwargs)
 t0 = time()
-print(f'Initialized system in {round(t0 - t, 3)} s.')
+print(f'Initialized systems in {round(t0 - t, 3)} s.')
 
-print(f'J matrices check: {np.array_equal(system1.J, system2.J)}')
+# print(f'J matrices check: {np.array_equal(system1.J, system2.J)}')
 
 # print(system1.ex_mags(system1.sigma))
 # print(system2.ex_mags(system2.sigma))
@@ -116,20 +118,23 @@ if compare_simulations:
     time0 = time()
     print('System 1 running...')
     output1 = system1.simulate(dynamic = dynamic, sim_rngSS = rng_seeds1[idx_l * len_y + idx_y], av_counter = av_counter,
-                               prints = True, **array_dict)[0]
+                               prints = False, **array_dict)[0]
     time1 = time()-time0
+    if not np.array_equal(np.mean(output1[-av_counter:], axis=0), mattis_from_file):
+        sys.exit('Sanity check failed.')
+    else:
+        print('Sanity check cleared.')
     time0 = time()
     print('\n System 2 running...')
-    output2 = system2.simulate(dynamic = 'sequential', sim_rngSS = rng_seeds2[idx_l * len_y + idx_y], disable = True, prints = True,
-                               av_counter = 2, **alt_array_dict)[0]
+    # output2 = system2.simulate(dynamic = 'sequential', sim_rngSS = rng_seeds2[idx_l * len_y + idx_y], disable = True, prints = True,
+    #                            av_counter = 2, **alt_array_dict)[0]
     time2 = time()-time0
-    print(f'\nCheck 1: {np.array_equal(np.mean(output1[-av_counter:], axis = 0), mattis_from_file)}')
     # print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')
-    print(f'Fast noise checker: {np.array_equal(np.random.default_rng(rng_seeds1[0]).random(10),
-                                                   np.random.default_rng(rng_seeds2[0]).random(10))}')
-    print(f'Time per iteration (system 1): {time1/(len(output1)-1)}')
-    print(f'Time per iteration (system 2): {time2 / (len(output2) - 1)}')
-    print(len(output1))
-    print(len(output2))
+    # print(f'Fast noise checker: {np.array_equal(np.random.default_rng(rng_seeds1[0]).random(10),
+    #                                                np.random.default_rng(rng_seeds2[0]).random(10))}')
+    # print(f'Time per iteration (system 1): {time1/(len(output1)-1)}')
+    # print(f'Time per iteration (system 2): {time2 / (len(output2) - 1)}')
+    # print(len(output1))
+    # print(len(output2))
 
 

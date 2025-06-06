@@ -3,7 +3,7 @@ import numpy as np
 import json
 from functools import reduce
 
-def npz_file_finder(directory, *args, prints = True, file_spec ='', **kwargs):
+def npz_file_finder(directory, *args, prints = False, file_spec ='', **kwargs):
 
     json_types = [str, bool]
     kwargs_json = {}
@@ -39,6 +39,10 @@ def npz_file_finder(directory, *args, prints = True, file_spec ='', **kwargs):
                             verdict = False
             if verdict:
                 file_list.append(npz_file_os)
+                if prints:
+                    print(file)
+                    n_samples = len([filenpy for filenpy in os.listdir(directory) if file[:-4] in filenpy and '_m.npy' in filenpy])
+                    print(f'Has {n_samples} samples.')
     if prints:
         print(f'{len(file_list)} file(s) found.')
 

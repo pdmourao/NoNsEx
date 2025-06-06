@@ -1,6 +1,5 @@
 import numpy as np
 from time import time
-import random
 from tqdm import tqdm
 
 # Class HopfieldMC simulates one HopfOfHopfs system
@@ -42,12 +41,11 @@ class HopfieldMC:
         self.N = neurons
 
         self.entropy = rngSS.entropy
-        rng = np.random.default_rng(rngSS)
-
+        self.rng = np.random.default_rng(rngSS)
         self.L = L
         # Patterns constructor
         if isinstance(K, (int,np.integer)):
-            self.pat = rng.choice([-1, 1], (max(L,K), self.N))
+            self.pat = self.rng.choice([-1, 1], (max(L,K), self.N))
         else:
             self.pat = K
         # Holds number of patterns
@@ -73,10 +71,10 @@ class HopfieldMC:
             else:
                 sizeM = self.M
             if noise_dif:
-                self.blur = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
+                self.blur = self.rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                         size=(self.L, sizeM, self.K, self.N))
             else:
-                self.blur = np.full(shape = (self.L, sizeM, self.K, self.N), fill_value = rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
+                self.blur = np.full(shape = (self.L, sizeM, self.K, self.N), fill_value = self.rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                              size=(sizeM, self.K, self.N)))
         else:
             self.blur = blur
@@ -86,12 +84,13 @@ class HopfieldMC:
 
         if compute_J:
             if lmb is None:
+                self.g = np.ones((3,3))
                 self.J = (1 / (R * self.N)) * np.einsum('kui, luj -> kilj', self.ex_av, self.ex_av)
             else:
-                g = np.array([[1, - lmb, - lmb],
+                self.g = np.array([[1, - lmb, - lmb],
                               [- lmb, 1, - lmb],
                               [- lmb, - lmb, 1]])
-                self.J = (1 / (R * self.N)) * np.einsum('kl, kui, luj -> kilj', g, self.ex_av, self.ex_av)
+                self.J = (1 / (R * self.N)) * np.einsum('kl, kui, luj -> kilj', self.g, self.ex_av, self.ex_av)
             for l in range(self.L):
 
                 for i in range(self.N):
@@ -109,7 +108,7 @@ class HopfieldMC:
 
             else:
                 input_blur = np.full(shape=(self.L, mixM, self.L, self.N),
-                                     fill_value=rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
+                                     fill_value=self.rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                                            size=(mixM, self.L, self.N)))
 
             input_ex = input_blur * self.pat[:self.L]
@@ -120,7 +119,7 @@ class HopfieldMC:
         state_blur = np.zeros(shape=(len(quality), self.N))
 
         for idx in range(len(quality)):
-            state_blur[idx] = rng.choice([-1, 1], p=[(1 - quality[idx]) / 2, (1 + quality[idx]) / 2], size=self.N)
+            state_blur[idx] = self.rng.choice([-1, 1], p=[(1 - quality[idx]) / 2, (1 + quality[idx]) / 2], size=self.N)
 
         if 'dis' in sigma_type:
             for layer in range(self.L):
@@ -160,8 +159,10 @@ class HopfieldMC:
                  cut = True, sim_rngSS = None):
 
         t = time()
-
-        sim_rng = np.random.default_rng(sim_rngSS)
+        if sim_rngSS is None:
+            sim_rng = np.random.default_rng(np.random.SeedSequence(self.entropy).spawn(1)[0])
+        else:
+            sim_rng = np.random.default_rng(sim_rngSS)
 
         if J is None:
             J = self.J
@@ -207,6 +208,18 @@ class HopfieldMC:
     def ex_mags(self, sigma):
         n = (1 / (self.N*(1+self.rho)*self.r)) * np.einsum('li, lui -> lu', sigma, self.ex_av[:,:self.L])
         return n
+
+    def add_load(self, k, prints = False):
+        assert self.rho == 0, 'add_load method only written for 0 dataset entropy'
+        t = time()
+        if prints:
+            print(f'System had {self.K} patterns.')
+        new_pats = self.rng.choice([-1, 1], (k, self.N))
+        self.J = self.J + (1 / self.N) * np.einsum('kl, ui, uj -> kilj', self.g, new_pats, new_pats)
+        self.K += np.shape(new_pats)[0]
+        t = time() - t
+        if prints:
+            print(f'Increased to {self.K} in {round(t,2)} seconds.')
 
 # dynamics flips exactly L*neurons neurons
 # Dynamics supported:
