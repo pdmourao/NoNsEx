@@ -35,9 +35,8 @@ from tqdm import tqdm
 
 class HopfieldMC:
 
-    def __init__(self, neurons, K, rho, M, mixM, sigma_type, quality, noise_dif, L = 3, blur = None, h = None,
-                 rngSS = np.random.SeedSequence(), compute_J = True, lmb = None):
-        t = time()
+    def __init__(self, neurons, K, rho, M, sigma_type, noise_dif, lmb = None, quality = [1,1,1], mixM = 0, L = 3, ex = None, h = None,
+                 rngSS = np.random.SeedSequence(), compute_J = True, Jtype = np.float64, prints = False):
         self.N = neurons
 
         self.entropy = rngSS.entropy
@@ -45,13 +44,17 @@ class HopfieldMC:
         self.L = L
         # Patterns constructor
         if isinstance(K, (int,np.integer)):
+            t = time()
             self.pat = self.rng.choice([-1, 1], (max(L,K), self.N))
+            if prints:
+                print(f'Generated patterns in {time() - t} seconds.')
         else:
             self.pat = K
         # Holds number of patterns
 
-        self.K = np.shape(self.pat)[0]
+        self.K, used_N = np.shape(self.pat)
         assert self.K >= self.L, 'Should have at least as many patterns as layers.'
+        assert used_N == self.N, 'Patterns have incorrect number of neurons'
 
         self.rho, self.M = rho, M
         self.r = np.sqrt(1 / (self.rho * self.M + 1))
@@ -60,58 +63,71 @@ class HopfieldMC:
         # Interaction matrix constructor
         R = self.r**2 + (1 - self.r**2)/self.M
 
+        t = time()
         # axis = 0 performs a sum of matrices, otherwise np.sum starts summing elements
-        if blur is None:
+        if ex is None:
             # Examples constructor
             # Define Chi vector
             # Take shape (L, M, K, neurons) for simpler multiplication below
-            t0 = time()
+            t = time()
             if 'ex' in sigma_type:
                 sizeM = max(self.M, mixM)
             else:
                 sizeM = self.M
             if noise_dif:
-                self.blur = self.rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
+                blur = self.rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                         size=(self.L, sizeM, self.K, self.N))
             else:
-                self.blur = np.full(shape = (self.L, sizeM, self.K, self.N), fill_value = self.rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
+                blur = np.full(shape = (self.L, sizeM, self.K, self.N), fill_value = self.rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                              size=(sizeM, self.K, self.N)))
+            if prints:
+                print(f'Generated blurs in {time() - t} seconds.')
+            self.ex = blur[:, :self.M] * self.pat
+            self.ex_av = np.average(self.ex, axis=1).astype(Jtype)
         else:
-            self.blur = blur
+            self.ex = ex
+            self.ex_av = np.average(self.ex, axis=1).astype(Jtype)
+            if prints:
+                print(f'Computed examples in {time() - t} seconds.')
 
-        self.ex = self.blur[:,:self.M] * self.pat
-        self.ex_av = np.average(self.ex, axis=1)
+
+        if prints:
+            print(f'Computed examples and averages in {time() - t} seconds.')
 
         if compute_J:
+            t = time()
+            norm = np.float64((1 / (R * self.N))).astype(Jtype)
             if lmb is None:
                 self.g = np.ones((3,3))
-                self.J = (1 / (R * self.N)) * np.einsum('kui, luj -> kilj', self.ex_av, self.ex_av)
+                self.J = norm * np.einsum('kui, luj -> kilj', self.ex_av, self.ex_av)
             else:
                 self.g = np.array([[1, - lmb, - lmb],
                               [- lmb, 1, - lmb],
                               [- lmb, - lmb, 1]])
-                self.J = (1 / (R * self.N)) * np.einsum('kl, kui, luj -> kilj', self.g, self.ex_av, self.ex_av)
+                self.J = norm * np.einsum('kl, kui, luj -> kilj', self.g.astype(Jtype), self.ex_av, self.ex_av)
             for l in range(self.L):
 
                 for i in range(self.N):
                     self.J[l, i, l, i] = 0
+            if prints:
+                print(f'Calculated interaction matrix in {time() - t} seconds.')
         else:
             self.J = None
 
         assert sigma_type in ['mix', 'mix_ex', 'dis', 'dis_ex'], 'Non valid sigma_type.'
 
+        t = time()
         if mixM == 0:
             input_ex_av = np.full(shape = (self.L, self.L, self.N), fill_value = self.pat[:self.L])
         else:
             if 'ex' in sigma_type:
-                input_blur = self.blur[:, :mixM, :self.L]
+                input_ex = self.ex[:, :mixM, :self.L]
 
             else:
-                input_blur = np.full(shape=(self.L, mixM, self.L, self.N),
+                input_ex = np.full(shape=(self.L, mixM, self.L, self.N),
                                      fill_value=self.rng.choice([-1, 1], p=[(1 - self.r) / 2, (1 + self.r) / 2],
                                                            size=(mixM, self.L, self.N)))
 
-            input_ex = input_blur * self.pat[:self.L]
             input_ex_av = np.average(input_ex, axis = 1)
 
         # Initial state
@@ -129,7 +145,8 @@ class HopfieldMC:
 
         self.input = input_ex_av
         self.sigma = state*state_blur
-
+        if prints:
+            print(f'Computed initial state in {time() - t} seconds.')
         # External field
         if h is None:
             self.h = np.sign(np.sum(input_ex_av, axis = 1))
@@ -154,8 +171,8 @@ class HopfieldMC:
     # it stops the simulation if less than error * L * neurons spins are flipped in one iteration
     # parallel is optional: if True, it runs parallel dynamics
 
-    # It returns the full history of states
-    def simulate(self, beta, H, max_it, error, av_counter, dynamic, J = None, disable = True, prints = False,
+    # It returns the full history of magnetizations
+    def simulate(self, beta, max_it, dynamic, H = 0, error = 0, av_counter = 1, J = None, disable = True, prints = False,
                  cut = True, sim_rngSS = None):
 
         t = time()
@@ -199,6 +216,34 @@ class HopfieldMC:
             return mags[-av_counter:], ex_mags[-av_counter:], saved_idx
         else:
             return mags, ex_mags, saved_idx
+
+    def simulate_full(self, beta, max_it, dynamic, H = 0, disable = True, prints = False, sim_rngSS = None):
+
+        t = time()
+        if sim_rngSS is None:
+            sim_rng = np.random.default_rng(np.random.SeedSequence(self.entropy).spawn(1)[0])
+        else:
+            sim_rng = np.random.default_rng(sim_rngSS)
+
+        state = self.sigma
+
+        states = [state]
+        mags = [self.mattis(state)]
+        ex_mags = [self.ex_mags(state)]
+
+
+        for idx in tqdm(range(max_it), disable = disable):
+            prev_state = state
+            state = dynamics(beta = beta, J = self.J, h = H * self.h, sigma = state, dynamic = dynamic, dyn_rng = sim_rng)
+            flips = np.sum(np.abs(state.astype(int) - prev_state.astype(int)))//2
+            mags.append(self.mattis(state))
+            if prints and disable:
+                print(f'\nIteration {idx+1}:')
+                print(self.mattis(state))
+            states.append(state)
+            ex_mags.append(self.ex_mags(state))
+
+        return states, mags, ex_mags
 
     # Method mattis returns an L x L array of the magnetizations with respect to the first L patterns
     def mattis(self, sigma):

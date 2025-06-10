@@ -174,10 +174,10 @@ def SplittingExperiment(suf, n_samples, rho_values, neurons, K, M, max_it, error
 
                     inputs_sys_notsplit['K'] = split.pat
 
-                    jointblur = np.full(shape = (split.L, inputs_sys_notsplit['M'], split.K, split.N),
-                                        fill_value = np.concatenate(tuple(layer for layer in split.blur)))
+                    jointex = np.full(shape = (split.L, inputs_sys_notsplit['M'], split.K, split.N),
+                                        fill_value = np.concatenate(tuple(layer for layer in split.ex)))
 
-                    notsplit = hop(rngSS=noise_notsplit, lmb = lmb_notsplit, sigma_type='mix', blur=jointblur,
+                    notsplit = hop(rngSS=noise_notsplit, lmb = lmb_notsplit, sigma_type='mix', ex=jointex,
                                    noise_dif=False, **inputs_sys_notsplit)
 
 

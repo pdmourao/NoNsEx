@@ -100,12 +100,12 @@ t = time()
 
 split = hop(rho = rho_split, lmb = lmb_split, rngSS = rng1_split, noise_dif = True, **sys_kwargs_split)
 
-jointblur=np.concatenate(tuple(split.blur))
-fullblur = np.full(shape = (split.L, sys_kwargs_notsplit['M'], split.K, split.N),
-                    fill_value = jointblur)
+jointex=np.concatenate(tuple(split.ex))
+fullex = np.full(shape = (split.L, sys_kwargs_notsplit['M'], split.K, split.N),
+                    fill_value = jointex)
 
 sys_kwargs_notsplit['K'] = split.pat
-notsplit = hop(rho = rho_notsplit, lmb = lmb_notsplit, rngSS=rng1_notsplit, noise_dif = False, blur=fullblur, **sys_kwargs_notsplit)
+notsplit = hop(rho = rho_notsplit, lmb = lmb_notsplit, rngSS=rng1_notsplit, noise_dif = False, ex=fullex, **sys_kwargs_notsplit)
 
 checker = True
 if checker:
@@ -120,8 +120,8 @@ if checker:
               ints_fromfile_notsplit==ints_checker_notsplit]
     print(f'Checks: {all(checks)}')
 
-array_dict['max_it'] = 100
-array_dict['error'] = 0
+# array_dict['max_it'] = 100
+# array_dict['error'] = 0
 
-m_new_split, n_new_split, ints_new_split = split.simulate(prints = True, beta = beta_split, cut = True, sim_rngSS = rng2_split.spawn(1)[0], **array_dict)
-m_new_notsplit, n_new_notsplit, ints_new_notsplit = notsplit.simulate(prints = True, beta = beta_notsplit, cut = True, sim_rngSS = rng2_notsplit.spawn(1)[0], **array_dict)
+# m_new_split, n_new_split, ints_new_split = split.simulate(prints = True, beta = beta_split, cut = True, sim_rngSS = rng2_split.spawn(1)[0], **array_dict)
+# m_new_notsplit, n_new_notsplit, ints_new_notsplit = notsplit.simulate(prints = True, beta = beta_notsplit, cut = True, sim_rngSS = rng2_notsplit.spawn(1)[0], **array_dict)

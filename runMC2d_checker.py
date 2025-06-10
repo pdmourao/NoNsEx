@@ -90,10 +90,12 @@ print(f'Initialized system 1 in {round(time() - t, 3)} s.')
 t = time()
 alt_sys_kwargs = dict(sys_kwargs)
 # To use for new inputs
-system2 = hop(rho = x_values[idx_x], lmb = y_values[idx_y], rngSS = rng_seeds2[idx_x * len_y + idx_y], **alt_sys_kwargs)
+system2 = hop(rho = x_values[idx_x], lmb = y_values[idx_y], rngSS = rng_seeds2[idx_x * len_y + idx_y], Jtype = np.float16, **alt_sys_kwargs)
 print(f'Initialized system 2 in {round(time() - t, 3)} s.')
 
 print(f'J matrices check: {np.array_equal(system1.J, system2.J)}')
+print(system2.J.dtype)
+print(system2.J.nbytes)
 
 print('System 1 running...')
 output1 = system1.simulate(dynamic = dynamic, sim_rngSS = rng_seeds1[idx_x * len_y + idx_y].spawn(1)[0], av_counter = av_counter,
@@ -103,22 +105,24 @@ if not np.array_equal(np.mean(output1[-av_counter:], axis=0), mattis_from_file):
 else:
     print('Sanity check cleared.')
 
-compare_simulations = False
+compare_simulations = True
 
 if compare_simulations:
 
     alt_array_dict = dict(array_dict)
-    alt_array_dict['error'] = 0
-    alt_array_dict['max_it'] = 5
+    # alt_array_dict['error'] = 0
+    # alt_array_dict['max_it'] = 5
 
     time0 = time()
     print('\n System 2 running...')
-    output2 = system2.simulate(dynamic = 'sequential', sim_rngSS = rng_seeds2[idx_x * len_y + idx_y].spawn(1)[0], disable = True, prints = True,
-                               av_counter = 2, cut = False, **alt_array_dict)[0]
+    output2 = system2.simulate(dynamic = dynamic, sim_rngSS = rng_seeds2[idx_x * len_y + idx_y].spawn(1)[0], disable = True, prints = True,
+                               av_counter = av_counter, cut = False, **alt_array_dict)[0]
+
+    print(np.mean(output2[-av_counter:], axis=0))
+    print(mattis_from_file)
+
     time2 = time()-time0
-    print(f'\nCheck 1: {np.array_equal(np.mean(output1[-av_counter:], axis = 0), mattis_from_file)}')
-    # print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')
-    print(f'Fast noise checker: {np.array_equal(np.random.default_rng(rng_seeds1[idx_x * len_y + idx_y]).random(10),
-                                                   np.random.default_rng(rng_seeds2[idx_x * len_y + idx_y]).random(10))}')
+    # print(f'\nCheck 1: {np.array_equal(np.mean(output1[-av_counter:], axis = 0), mattis_from_file)}')
+    print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')
 
 
