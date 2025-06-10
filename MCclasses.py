@@ -37,7 +37,6 @@ class HopfieldMC:
 
     def __init__(self, neurons, K, rho, M, sigma_type, noise_dif, lmb = None, quality = [1,1,1], mixM = 0, L = 3, ex = None, h = None,
                  rngSS = np.random.SeedSequence(), compute_J = True, Jtype = np.float64, prints = False):
-        self.N = neurons
 
         self.entropy = rngSS.entropy
         self.rng = np.random.default_rng(rngSS)
@@ -45,16 +44,24 @@ class HopfieldMC:
         # Patterns constructor
         if isinstance(K, (int,np.integer)):
             t = time()
-            self.pat = self.rng.choice([-1, 1], (max(L,K), self.N))
+            self.pat = self.rng.choice([-1, 1], (max(L,K), neurons))
             if prints:
                 print(f'Generated patterns in {time() - t} seconds.')
         else:
-            self.pat = K
+            t = time()
+            input_K, input_N = np.shape(K)
+
+            if input_N < neurons:
+                pat_buffer = self.rng.choice([-1, 1], (input_K, neurons - input_N))
+                self.pat = np.concatenate((K, pat_buffer), axis = 1)
+                if prints:
+                    print(f'Buffered patterns in {time() - t} seconds.')
+            else:
+                self.pat = K
         # Holds number of patterns
 
-        self.K, used_N = np.shape(self.pat)
+        self.K, self.N = np.shape(self.pat)
         assert self.K >= self.L, 'Should have at least as many patterns as layers.'
-        assert used_N == self.N, 'Patterns have incorrect number of neurons'
 
         self.rho, self.M = rho, M
         self.r = np.sqrt(1 / (self.rho * self.M + 1))
