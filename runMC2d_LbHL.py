@@ -23,7 +23,7 @@ y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
 disable = False
 
 kwargs = {'neurons': 4000,
-          'K': 30,
+          'K': 25,
           'lmb': l_values,
           'beta': y_values,
           'rho': 0,
