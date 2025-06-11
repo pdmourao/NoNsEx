@@ -1,0 +1,5 @@
+203748477786163793093866656734919284042
+(Disentangled at iteration 3 [sequential, lmb = 0.3, beta = 10, rho = 0] then lost it)
+First successful disentanglement:
+5000 neurons, rho = 0, lmb = 0.3, beta = 10, sequential, full mixture, only saved indices [1,2,3]
+

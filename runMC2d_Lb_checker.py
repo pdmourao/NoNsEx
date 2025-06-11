@@ -15,8 +15,8 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-idx_s = 2
-x = 0.26
+idx_s = 0
+x = 0.1
 y = 20.4
 
 
@@ -31,23 +31,23 @@ print(f'Values: lmb = {l_values[idx_l]}, beta = {y_values[idx_y]}')
 
 array_dict = {'beta': y_values,
               'H': 0,
-              'max_it': 30,
+              'max_it': 10,
               'error': 0.002,
               }
 
-sys_kwargs = {'neurons': 5000,
+sys_kwargs = {'neurons': 4000,
               'K': 5,
-              'rho': 0.05,
-              'M': 150,
+              'rho': 0,
+              'M': 1,
               'mixM': 0,
               'quality': [1, 1, 1],
               'sigma_type': 'mix',
               'noise_dif': False
               }
 
-dynamic = 'parallel'
-save_n = False
-save_int = False
+dynamic = 'sequential'
+save_n = True
+save_int = True
 av_counter = 3
 
 len_l = len(l_values)
@@ -93,7 +93,7 @@ system1 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **
 
 alt_sys_kwargs = dict(sys_kwargs)
 # To use for new inputs
-# system2 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **alt_sys_kwargs)
+system2 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **alt_sys_kwargs)
 t0 = time()
 print(f'Initialized systems in {round(t0 - t, 3)} s.')
 
@@ -126,8 +126,8 @@ if compare_simulations:
         print('Sanity check cleared.')
     time0 = time()
     print('\n System 2 running...')
-    # output2 = system2.simulate(dynamic = 'sequential', sim_rngSS = rng_seeds2[idx_l * len_y + idx_y], disable = True, prints = True,
-    #                            av_counter = 2, **alt_array_dict)[0]
+    output2 = system2.simulate(dynamic = 'sequential', sim_rngSS = rng_seeds2[idx_l * len_y + idx_y], disable = True, prints = True,
+                               av_counter = 2, **alt_array_dict)[0]
     time2 = time()-time0
     # print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')
     # print(f'Fast noise checker: {np.array_equal(np.random.default_rng(rng_seeds1[0]).random(10),

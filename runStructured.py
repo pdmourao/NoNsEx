@@ -12,18 +12,25 @@ labels = data['labels']
 
 images_bin = np.array([-np.sign(vec/255-0.5) for vec in images])
 
-# fig, axes = plt.subplots(2,5)
-# for idx, ax in enumerate(np.ndarray.flatten(axes)):
-#     ax.imshow(images_bin[idx], vmin=0, vmax=1)
-#     ax.set_title(f'{labels[idx]}')
-#     ax.set_axis_off()
-# plt.show()
+separator = np.all(images_bin[:-1] == images_bin[1:], axis = 0)
+picker = np.logical_not(separator)
 
-patterns = np.array([np.reshape(vec, newshape = (-1)) for vec in images_bin])
+im_remainder = separator*images_bin[0]
+im_reduced = np.array([picker*image for image in images_bin])
+
+indices = [1,2,3]
+im_reduced_flat = np.array([im[im!=0] for im in im_reduced])
+
+entropy = 203748477786163793093866656734919284042
+rngSS = np.random.SeedSequence(entropy)
 
 t = time()
-system = hop(neurons = np.size(images[0]), K = patterns, rho = 15, M = 50, lmb = 0.1, sigma_type = 'mix',
-             noise_dif = True, Jtype = np.float16, prints = True)
+system = hop(neurons = 5000, K = np.take(im_reduced_flat, indices, axis = 0), rho = 0, M = 1, lmb = 0.3, sigma_type = 'mix',
+             noise_dif = False, Jtype = np.float64, prints = True, rngSS = rngSS)
 print(f'Generated system in {time() - t} seconds.')
+print(f'Entropy: {system.entropy}')
+print(f'{system.N} neurons.')
+print(f'The intiial state is')
+print(f'{system.mattis(system.sigma)}')
 
-states, mags, ex_mags = system.simulate_full(beta = np.inf, max_it = 100, dynamic = 'sequential', prints = True)
+states, mags, ex_mags = system.simulate_full(beta = 10, max_it = 100, dynamic = 'sequential', prints = True)
