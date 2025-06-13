@@ -15,7 +15,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 5
+samples = 0
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
@@ -23,7 +23,7 @@ y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
 disable = False
 
 kwargs = {'neurons': 4000,
-          'K': 30,
+          'K': 5,
           'lmb': l_values,
           'beta': y_values,
           'rho': 0,
