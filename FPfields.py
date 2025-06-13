@@ -1,6 +1,6 @@
 import numpy as np
 import scipy
-from time import time
+from time import time, process_time
 import math
 
 # functions to be used as inputs for the fixed point method
@@ -193,7 +193,6 @@ vNoNsEx_NtoM = np.vectorize(NoNsEx_NtoM, signature = '(d,d),(d),(),()->(d,d)')
 
 
 def NoNsExOld(m, q, T, lmb, rho, alpha, H, p_reg = 1):
-    t = time()
     matrix_g = g(lmb)
     beta = 1/T
     # print(np.eye(3) - (beta * rho / (1 + rho)) * matrix_g @ np.diag(1-q))
@@ -215,7 +214,7 @@ def NoNsExOld(m, q, T, lmb, rho, alpha, H, p_reg = 1):
     return m_out, q_out
 
 def NoNsEx_noalpha(m, q, T, lmb, rho, alpha, H, p_reg = 1):
-    t = time()
+
     matrix_g = g(lmb)
     beta = 1/T
     n = (1/(1+rho)) * m @ np.linalg.inv(np.eye(3)-(beta * rho / (1 + rho)) * matrix_g @ np.diag(1-q))
@@ -253,4 +252,88 @@ def m_in(epsilon=0):
     return np.full(shape = (3, 3), fill_value = 1/2) - np.full(shape = (3, 3), fill_value = epsilon) + np.diag(np.full(3, fill_value = 2*epsilon))
 
 initial_q = np.full(shape = 3, fill_value = 1)
+
+
+def cartesian_product(*arrays):
+    la = len(arrays)
+    dtype = np.result_type(*arrays)
+    arr = np.empty([len(a) for a in arrays] + [la], dtype=dtype)
+    for i, a in enumerate(np.ix_(*arrays)):
+        arr[...,i] = a
+    return arr.reshape(-1, la)
+
+
+v = np.array([1,-1])
+ev_vec = cartesian_product(v,v,v)
+print(ev_vec)
+
+def bin_sum(f):
+    return np.sum(np.apply_along_axis(f, axis = 1, arr = ev_vec))
+
+def bin_ev(f):
+    return (1/8)*np.sum(np.apply_along_axis(f, axis = 1, arr = ev_vec))
+
+def ZL_fac(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h):
+    return np.exp((1 / 2) * np.dot(s, C @ s) + np.dot(beta * (g_matrix@m@xi + h) + theta * np.sqrt(alpha * beta * p12.diagonal()), s))
+
+def ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h):
+    return ZL_fac(alpha, beta, g_matrix, m, C, xi, s, theta, h)/bin_sum(lambda s_den: ZL_fac(alpha, beta, g_matrix, m, C, p12, xi, s_den, theta, h))
+
+def gauss_int(f, errorbound):
+    lowerbound = scipy.special.erfinv(-1 + errorbound)
+    upperbound = scipy.special.erfinv(1 - errorbound)
+
+    return scipy.integrate.quad(lambda theta: (1 / np.sqrt(2 * np.pi)) * np.exp(-theta ** 2 / 2) * f(theta),
+                                lowerbound, upperbound)[0]
+
+def NoNsEx_HL_m(m, C, p12, alpha, beta, g_matrix, h, errorbound = 0):
+    new_m = np.zeros((3,3))
+    for layer in range(3):
+        for pat in range(3):
+            new_m[layer,pat] = gauss_int(lambda theta:
+                                         bin_ev(lambda xi:
+                                                bin_sum(lambda s:
+                                                        xi[pat] * s[layer] *
+                                                        ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h)
+                                                        )),
+                                         errorbound = errorbound)
+    return new_m
+
+
+def NoNsEx_HL_q(m, C, p12, alpha, beta, g_matrix, h, errorbound = 0):
+    new_q = np.ones((3,3))
+    single_s = np.array([gauss_int(lambda theta:
+                         bin_ev(lambda xi:
+                                bin_sum(lambda s:
+                                        s[layer] * ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h)
+                                        )), errorbound = errorbound) for layer in range(3)])
+    for l1 in range(3):
+        for l2 in range(3):
+            if l1 != l2:
+                new_q[l1,l2] = gauss_int(lambda theta:
+                                             bin_ev(lambda xi:
+                                                    bin_sum(lambda s:
+                                                            s[l1] * s[l2] *
+                                                            ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h)
+                                                            )),
+                                             errorbound = errorbound)
+
+    mat_for_diag = np.array([[np.sqrt(p12[k,k]/p12[l,l])*(new_q[l,k] - single_s[l] * single_s[k])
+                              for k in range(3)]
+                             for l in range(3)])
+
+    np.fill_diagonal(new_q, 1 - np.sum(mat_for_diag, axis = 1))
+
+    return new_q
+
+
+def NoNsEx_HL(alpha, beta, g_matrix, m, q, p11, p12, h, errorbound = 0):
+    Ct = np.diag(beta * (1 - np.diag(q)))
+    C = alpha * beta * (p11 - p12)
+    C[np.arange(3), np.arange(3)] = 0
+    new_m = NoNsEx_HL_m(m, C, p12, alpha, beta, g_matrix, h, errorbound = errorbound)
+    new_q = NoNsEx_HL_q(m, C, p12, alpha, beta, g_matrix, h, errorbound=errorbound)
+    new_p12 = new_p11 - g_matrix @ np.linalg.inv(np.eye(3) - Ct @ g)
+    return new_m, new_q, new_p11, new_p12
+
 
