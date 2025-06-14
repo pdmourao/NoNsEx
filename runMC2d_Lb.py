@@ -28,7 +28,7 @@ kwargs = {'neurons': 5000,
           'beta': y_values,
           'rho': 0.05,
           'H': 0,
-          'M': 100,
+          'M': 150,
           'mixM': 0,
           'max_it': 30,
           'error': 0.002,
@@ -37,8 +37,8 @@ kwargs = {'neurons': 5000,
           'dynamic': 'parallel',
           'sigma_type': 'mix',
           'noise_dif': False,
-          'save_n': True,
-          'save_int': True
+          'save_n': False,
+          'save_int': False
           }
 
 len_l = len(l_values)
@@ -55,17 +55,4 @@ ax.invert_yaxis()
 ax.set_xlabel(fp.arg_to_label['lmb'])
 ax.set_ylabel(fp.arg_to_label['beta'])
 ax.set_title(f'{fp.arg_to_label['rho']} = {kwargs['rho']}')
-plt.show()
-
-
-fig, ax = plt.subplots(1)
-vec_for_imshow = np.transpose(np.flip(np.max(int_array_trials, axis=0), axis=-1))
-print(vec_for_imshow)
-
-ax.imshow(vec_for_imshow, cmap='Reds', vmin=0, vmax=kwargs['max_it'], aspect='auto', interpolation='nearest',
-              extent=[l_values[0], l_values[-1], y_values[0], y_values[-1]])
-
-ax.set_xlim(l_values[0], l_values[-1])
-ax.set_ylim(y_values[0], y_values[-1])
-ax.invert_yaxis()
 plt.show()
