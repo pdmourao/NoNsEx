@@ -31,11 +31,11 @@ print(f'Values: lmb = {l_values[idx_l]}, beta = {y_values[idx_y]}')
 
 array_dict = {'beta': y_values,
               'H': 0,
-              'max_it': 10,
+              'max_it': 30,
               'error': 0.002,
               }
 
-sys_kwargs = {'neurons': 4000,
+sys_kwargs = {'neurons': 5000,
               'K': 5,
               'rho': 0,
               'M': 1,
@@ -45,7 +45,7 @@ sys_kwargs = {'neurons': 4000,
               'noise_dif': False
               }
 
-dynamic = 'sequential'
+dynamic = 'parallel'
 save_n = True
 save_int = True
 av_counter = 3

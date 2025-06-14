@@ -5,11 +5,11 @@ from FPfields import m_in
 import json
 
 
-directory = 'MC2d'
-excluded = ['lmb','rho','H']
+directory = 'MC2d_Lb'
+excluded = ['lmb','rho', 'beta', 'H']
 
-x_values = np.linspace(start = 0, stop = 0.3, num = 50, endpoint = False)
-y_values = np.linspace(start = 0, stop = 0.5, num = 50)
+l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
+y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
 
 for file in npz_file_finder(directory):
     print('\n' + file)

@@ -15,7 +15,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-idx_s = 18
+idx_s = 0
 
 
 x_arg = 'rho'
@@ -25,12 +25,12 @@ y_arg = 'lmb'
 # y_values = np.linspace(start = 20, stop = 0, num = 50, endpoint = False)[::-1]
 y_values = np.linspace(start = 0, stop = 0.5, num = 50)
 
-idx_x = 13
-idx_y = 49
+idx_x = 45
+idx_y = 45
 
-# print(f'Values: rho = {x_values[idx_x]}, lmb = {y_values[idx_y]}')
+print(f'Values: rho = {x_values[idx_x]}, lmb = {y_values[idx_y]}')
 
-array_dict = {'beta': 10,
+array_dict = {'beta': 5,
               'H': 0,
               'max_it': 30,
               'error': 0.002
@@ -65,16 +65,24 @@ if len(npz_files) > 1:
 try:
     file_npz = npz_files[0]
     file_npy = file_npz[:-4] + f'_sample{idx_s}_m.npy'
+    file_npy_ints = file_npz[:-4] + f'_sample{idx_s}_ints.npy'
     file_json = file_npz[:-3] + 'json'
     with open(file_json, mode="r", encoding="utf-8") as json_file:
         data = json.load(json_file)
         entropy_from_os = int(data['entropy'])
     entropy = (entropy_from_os, idx_s)
     mattis_from_file = np.load(file_npy)[idx_x*len_y + idx_y]
+    ints_from_file = np.load(file_npy_ints)[idx_x * len_y + idx_y]
 except IndexError or FileNotFoundError:
     print('No file saved for these inputs')
     entropy = np.random.SeedSequence().entropy
     mattis_from_file = np.zeros((3, 3))
+    ints_from_file = None
+
+if ints_from_file is not None:
+    print('From file:')
+    print(mattis_from_file)
+    print(f'Ran to {ints_from_file} iteration(s).')
 
 
 # print(mattis_from_file)
@@ -90,7 +98,7 @@ print(f'Initialized system 1 in {round(time() - t, 3)} s.')
 t = time()
 alt_sys_kwargs = dict(sys_kwargs)
 # To use for new inputs
-system2 = hop(rho = x_values[idx_x], lmb = y_values[idx_y], rngSS = rng_seeds2[idx_x * len_y + idx_y], Jtype = np.float16, **alt_sys_kwargs)
+system2 = hop(rho = x_values[idx_x], lmb = y_values[idx_y], rngSS = rng_seeds2[idx_x * len_y + idx_y], **alt_sys_kwargs)
 print(f'Initialized system 2 in {round(time() - t, 3)} s.')
 
 print(f'J matrices check: {np.array_equal(system1.J, system2.J)}')
@@ -110,8 +118,8 @@ compare_simulations = True
 if compare_simulations:
 
     alt_array_dict = dict(array_dict)
-    # alt_array_dict['error'] = 0
-    # alt_array_dict['max_it'] = 5
+    alt_array_dict['error'] = 0
+    alt_array_dict['max_it'] = 50
 
     time0 = time()
     print('\n System 2 running...')
