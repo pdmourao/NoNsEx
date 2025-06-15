@@ -27,17 +27,17 @@ disable = False
 
 kwargs = {'neurons': 3000,
           'K': 3,
-          'beta': 5,
+          'beta': np.inf,
           'H': 0,
           'M': 50,
           'mixM': 0,
-          'max_it': 50,
-          'error': 0.005,
-          'av_counter': 3,
+          'max_it': 100,
+          'error': 1,
+          'av_counter': 1,
           'quality': [1, 1, 1],
-          'dynamic': 'parallel',
+          'dynamic': 'sequential',
           'sigma_type': 'mix',
-          'noise_dif': False,
+          'noise_dif': True,
           'save_n': True,
           'save_int': True
           }
