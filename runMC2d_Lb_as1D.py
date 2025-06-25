@@ -87,9 +87,9 @@ for idx_x, x in enumerate(x_values):
         this_m = m_arrays[idx_s, idx_x]
         this_diag = np.sort(np.diagonal(this_m))[::-1]
         if mags_id('dis', this_m, cutoff_dis):
-            if not mags_id('dis', this_m, 0.9):
-                print(f'Sample {idx_s}')
-                print(this_m)
+            # if not mags_id('dis', this_m, 0.9):
+                # print(f'Sample {idx_s}')
+                # print(this_m)
             mags[1].append(np.sort(this_m, axis = None)[-3:])
             successes += 1
         elif mags_id('mix', this_m, cutoff_mix):
