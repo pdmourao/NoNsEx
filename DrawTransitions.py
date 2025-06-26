@@ -1,6 +1,6 @@
 from storage import npz_file_finder
 import FPfuncs as fp
-from FPfields import m_in, initial_q
+from FPfields import m_in, initial_q_LL
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -25,16 +25,16 @@ tr_arrays_lmb = [[] for det in tr_dets]
 
 initial_m = m_in()
 
-for file in npz_file_finder('FP1d', file_spec='NoNsEx_', arr_0 =m_in() + pert, arr_1 = initial_q, H = 0,
-							alpha = 0, rho = rho_values, beta = 10):
+for file in npz_file_finder('FP1d', file_spec='NoNsEx_', arr_0 =m_in() + pert, arr_1 = initial_q_LL, H = 0,
+                            alpha = 0, rho = rho_values, beta = 10):
     with np.load(file) as data:
         for idx_det, tr_det in enumerate(tr_dets):
             idx_tr = fp.FindTransitionFromVec(data['m'], tr_det=tr_det)
             if idx_tr > 0:
                 tr_arrays_rho[idx_det].append([data['rho'][idx_tr], data['lmb']])
 
-for file in npz_file_finder('FP1d', file_spec='NoNsEx_', arr_0 =m_in() + pert, arr_1 = initial_q, H = 0,
-							alpha = 0, lmb = lmb_values, beta = 10):
+for file in npz_file_finder('FP1d', file_spec='NoNsEx_', arr_0 =m_in() + pert, arr_1 = initial_q_LL, H = 0,
+                            alpha = 0, lmb = lmb_values, beta = 10):
     with np.load(file) as data:
         for idx_det, tr_det in enumerate(tr_dets):
             idx_tr = fp.FindTransitionFromVec(data['m'], tr_det=tr_det)

@@ -51,18 +51,19 @@ def CW(m, T, h):
     return m_out
 
 
-def integrandHLm(x, m, q, h, alfa, beta):
-    return (1/np.sqrt(2*np.pi))*np.exp(-x**2/2)*np.tanh(beta*(m+h+x*(np.sqrt(alfa*q)/(1-beta*(1-q)))))
+def integrandHLm(x, m, q, p, h, alpha, beta):
+    return (1/np.sqrt(2*np.pi))*np.exp(-x**2/2)*np.tanh(beta*(m+h+x*(np.sqrt(alpha * p))))
 
 
-def integrandHLq(x, m, q, h, alfa, beta):
-    return (1/np.sqrt(2*np.pi))*np.exp(-x**2/2)*(np.tanh(beta*(m+h+x*(np.sqrt(alfa*q)/(1-beta*(1-q))))))**2
+def integrandHLq(x, m, q, p, h, alpha, beta):
+    return (1/np.sqrt(2*np.pi))*np.exp(-x**2/2)*(np.tanh(beta*(m+h+x*(np.sqrt(alpha * p)))))**2
 
 
-def HLH(m, alfa, T, h):
-    q1 = scipy.integrate.quad(integrandHLm, -np.inf, np.inf, args = (m[0], m[1], h, alfa, 1/T))[0]
-    q2 = scipy.integrate.quad(integrandHLq, -np.inf, np.inf, args = (m[0], m[1], h, alfa, 1/T))[0]
-    return q1, q1
+def HLH(m, q, p, alpha, beta, h, errorbound = 0):
+    new_m = scipy.integrate.quad(integrandHLm, -np.inf, np.inf, args = (m, q, p, h, alpha, beta))[0]
+    new_q = scipy.integrate.quad(integrandHLq, -np.inf, np.inf, args = (m, q, p, h, alpha, beta))[0]
+    new_p = q / ((1 - beta * (1 - q)) ** 2)
+    return new_m, new_q
 
 
 def NoNsLL(m, lmb, T, H):
@@ -251,8 +252,6 @@ def NoN_q_to_p(b, lmb, q, p_reg = 1):
 def m_in(epsilon=0):
     return np.full(shape = (3, 3), fill_value = 1/2) - np.full(shape = (3, 3), fill_value = epsilon) + np.diag(np.full(3, fill_value = 2*epsilon))
 
-initial_q = np.full(shape = 3, fill_value = 1)
-
 
 def cartesian_product(*arrays):
     la = len(arrays)
@@ -265,7 +264,6 @@ def cartesian_product(*arrays):
 
 v = np.array([1,-1])
 ev_vec = cartesian_product(v,v,v)
-print(ev_vec)
 
 def bin_sum(f):
     return np.sum(np.apply_along_axis(f, axis = 1, arr = ev_vec))
@@ -273,11 +271,11 @@ def bin_sum(f):
 def bin_ev(f):
     return (1/8)*np.sum(np.apply_along_axis(f, axis = 1, arr = ev_vec))
 
-def ZL_fac(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h):
-    return np.exp((1 / 2) * np.dot(s, C @ s) + np.dot(beta * (g_matrix@m@xi + h) + theta * np.sqrt(alpha * beta * p12.diagonal()), s))
+def ZL_fac(alpha, beta, g_matrix, m, C_no_ab, p12, xi, s, theta, h):
+    return np.exp((1 / 2) * np.dot(s, alpha*beta*C_no_ab @ s) + beta * np.dot((g_matrix@m@xi + h) + theta * np.sqrt(alpha * p12.diagonal()), s))
 
-def ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h):
-    return ZL_fac(alpha, beta, g_matrix, m, C, xi, s, theta, h)/bin_sum(lambda s_den: ZL_fac(alpha, beta, g_matrix, m, C, p12, xi, s_den, theta, h))
+def ZL_weight(alpha, beta, g_matrix, m, C_no_ab, p12, xi, s, theta, h):
+    return ZL_fac(alpha, beta, g_matrix, m, C_no_ab, p12, xi, s, theta, h)/bin_sum(lambda s_den: ZL_fac(alpha, beta, g_matrix, m, C_no_ab, p12, xi, s_den, theta, h))
 
 def gauss_int(f, errorbound):
     lowerbound = scipy.special.erfinv(-1 + errorbound)
@@ -302,11 +300,16 @@ def NoNsEx_HL_m(m, C, p12, alpha, beta, g_matrix, h, errorbound = 0):
 
 def NoNsEx_HL_q(m, C, p12, alpha, beta, g_matrix, h, errorbound = 0):
     new_q = np.ones((3,3))
-    single_s = np.array([gauss_int(lambda theta:
+    single_s = np.array([[gauss_int(lambda theta:
                          bin_ev(lambda xi:
                                 bin_sum(lambda s:
-                                        s[layer] * ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h)
-                                        )), errorbound = errorbound) for layer in range(3)])
+                                        s[layer1] * ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h))
+                                *bin_sum(lambda s:
+                                        s[layer2] * ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h)
+                                        )
+                                ), errorbound = errorbound)
+                          for layer1 in range(3)] for layer2 in range(3)])
+
     for l1 in range(3):
         for l2 in range(3):
             if l1 != l2:
@@ -318,7 +321,7 @@ def NoNsEx_HL_q(m, C, p12, alpha, beta, g_matrix, h, errorbound = 0):
                                                             )),
                                              errorbound = errorbound)
 
-    mat_for_diag = np.array([[np.sqrt(p12[k,k]/p12[l,l])*(new_q[l,k] - single_s[l] * single_s[k])
+    mat_for_diag = np.array([[np.sqrt(p12[k,k]/p12[l,l])*(new_q[l,k] - single_s[l,k])
                               for k in range(3)]
                              for l in range(3)])
 
@@ -327,13 +330,30 @@ def NoNsEx_HL_q(m, C, p12, alpha, beta, g_matrix, h, errorbound = 0):
     return new_q
 
 
-def NoNsEx_HL(alpha, beta, g_matrix, m, q, p11, p12, h, errorbound = 0):
+def NoNsEx_HL(m, q, p, alpha, beta, lmb, h, errorbound = 0):
+
     Ct = np.diag(beta * (1 - np.diag(q)))
-    C = alpha * beta * (p11 - p12)
-    C[np.arange(3), np.arange(3)] = 0
-    new_m = NoNsEx_HL_m(m, C, p12, alpha, beta, g_matrix, h, errorbound = errorbound)
-    new_q = NoNsEx_HL_q(m, C, p12, alpha, beta, g_matrix, h, errorbound=errorbound)
-    new_p12 = new_p11 - g_matrix @ np.linalg.inv(np.eye(3) - Ct @ g)
-    return new_m, new_q, new_p11, new_p12
+    g_matrix = g(lmb)
+    Ginv = np.linalg.inv(np.linalg.inv(g_matrix)-Ct)
+
+    new_m = NoNsEx_HL_m(m, Ginv, p, alpha, beta, g_matrix, h, errorbound = errorbound)
+    new_q = NoNsEx_HL_q(m, Ginv, p, alpha, beta, g_matrix, h, errorbound=errorbound)
+    new_p = Ginv @ q @ Ginv
+
+    return new_m, new_q, new_p
+
+
+
+pert_spur = np.array([[ 1, -1, -1],
+                      [ 1, -1, -1],
+                      [ 1, -1, -1]])
+pert_dis = np.array([[ 1, -1, -1],
+                     [-1,  1, -1],
+                     [-1,  1, -1]])
+initial_q_LL = np.full(shape = 3, fill_value = 1.)
+initial_q_i = np.full(shape = (3,3), fill_value = 1.)
+initial_q_o = np.diag(initial_q_LL)
+initial_p_i = np.full(shape = (3,3), fill_value = 1.)
+initial_p_o = np.diag(initial_q_LL)
 
 

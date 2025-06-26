@@ -1,6 +1,6 @@
 import numpy as np
 import FPfuncs as fp
-from FPfields import NoNsEx, m_in, initial_q
+from FPfields import NoNsEx, m_in, initial_q_LL
 from matplotlib import pyplot as plt
 from scipy.interpolate import make_interp_spline
 
@@ -29,8 +29,8 @@ pert_in = np.array([[ 1, -1, -1],
                     [-1,  1, -1],
                     [-1, -1,  1]])
 
-args_in = m_in() + 1e-8*pert_in, initial_q
-args_out = m_in(4/10) + 1e-8*pert_out, initial_q
+args_in = m_in() + 1e-8*pert_in, initial_q_LL
+args_out = m_in(4/10) + 1e-8*pert_out, initial_q_LL
 
 plt.figure(figsize=(5.15, 5.15))
 plt.clf()
@@ -46,7 +46,7 @@ for value_l in label_values:
 
 		inputs[label_arg] = value_l
 		inputs[y_arg] = value_y
-		m, q, n = fp.solve(NoNsEx, *args_out, use_files=True, disable=False, **inputs)
+		m, q, n = fp.solve_old(NoNsEx, *args_out, use_files=True, disable=False, **inputs)
 
 		idx_tr = 0
 		for idx_m, m_value in enumerate(m):

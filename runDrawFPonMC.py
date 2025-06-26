@@ -7,7 +7,7 @@ import csv
 from storage import npz_file_finder
 from FPfuncs import recovered_pats
 import FPfuncs as fp
-from FPfields import m_in, initial_q
+from FPfields import m_in, initial_q_LL
 
 
 t0 = time()
@@ -98,7 +98,7 @@ for beta in beta_values_FP:
 
     initial_m = m_in() + pert
 
-    for file in npz_file_finder('FP1d', file_spec='NoNsEx', arr_0=initial_m, arr_1=initial_q,
+    for file in npz_file_finder('FP1d', file_spec='NoNsEx', arr_0=initial_m, arr_1=initial_q_LL,
                                 rho=kwargs['rho'], H=kwargs['H'], alpha=alpha, beta = beta, error = 1e-10):
         with np.load(file) as data:
             for idx_det, tr_det in enumerate(tr_dets):
@@ -148,7 +148,7 @@ for beta in beta_values_FP:
 
     initial_m = m_in() + pert
 
-    for file in npz_file_finder('FP1d', file_spec='NoNsEx', arr_0=initial_m, arr_1=initial_q,
+    for file in npz_file_finder('FP1d', file_spec='NoNsEx', arr_0=initial_m, arr_1=initial_q_LL,
                                 rho=kwargs['rho'], H=kwargs['H'], alpha=alpha, beta = beta, error = 1e-10):
         with np.load(file) as data:
             for idx_det, tr_det in enumerate(tr_dets):

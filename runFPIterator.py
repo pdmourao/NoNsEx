@@ -1,6 +1,6 @@
 import FPfuncs as fp
 import numpy as np
-from FPfields import NoNsEx, m_in, initial_q
+from FPfields import NoNsEx, m_in, initial_q_LL
 from matplotlib import pyplot as plt
 from FPfuncs import recovered_pats
 
@@ -54,14 +54,14 @@ for rho in rho_values:
               'error': 1e-10}
 
     pert = 1e-8 * pert_2
-    args = m_in(4/10)+pert, initial_q
+    args = m_in(4/10)+pert, initial_q_LL
 
-    m_out, q_out, n_out = fp.solve(field, *args, use_files = use_files, disable = False, **kwargs)
+    m_out, q_out, n_out = fp.solve_old(field, *args, use_files = use_files, disable = False, **kwargs)
 
     pert = 1e-8 * pert_4
-    args = m_in() + pert, initial_q
+    args = m_in() + pert, initial_q_LL
 
-    m_ini, q_ini, n_ini = fp.solve(field, *args, use_files=use_files, disable=False, **kwargs)
+    m_ini, q_ini, n_ini = fp.solve_old(field, *args, use_files=use_files, disable=False, **kwargs)
 
 
 graph = False

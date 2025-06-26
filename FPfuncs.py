@@ -5,17 +5,18 @@ import os
 from storage import npz_file_finder
 from copy import deepcopy
 
-def iterator(*args, max_it, field, not_all_neg = [], dif_length = 0, error = 0, order = None, ibound = 0, min_it = 1, pbar = None, **kwargs):
+def iterator(*args, max_it, field, not_all_neg = [], dif_length = 0, error = 0, order = None, min_it = 1,
+             pbar = None, **kwargs):
     iter_list = [args]
 
     it = 0
     dif_list = []
-
     for it in range(max_it):
         old_iter = iter_list[-1]
         # calculates new entry
-        new_iter = field(*old_iter, errorbound = ibound, **kwargs)
-        new_ms = new_iter[2]
+        new_iter = field(*old_iter, **kwargs)
+        for output in new_iter:
+            print(output)
         # print(new_ms)
         # print(new_ms[0]-new_ms[1])
 
@@ -51,14 +52,72 @@ def iterator(*args, max_it, field, not_all_neg = [], dif_length = 0, error = 0, 
 
     return output_difs, iter_list
 
+def solve(field, *args, x_arg = None, directory = None, disable = False, **kwargs):
 
-def solve(field, *args, rand = None, use_files = False, disable = False, **kwargs):
+
+    # try to get results already computed from files
+    try:
+        file_list_npz = npz_file_finder(directory, *args, **kwargs)
+        fname_os = file_list_npz[0]
+        if len(file_list_npz) > 0:
+            print('Warning: More than one file found.')
+            print(f'Using {fname_os}')
+        file_list_npy = [os.path.join(directory, file) for file in os.listdir(directory) if fname_os[:-4] in os.path.join(directory, file)]
+        file_list_npy.sort()
+        outputs = [np.load(file) for file in file_list_npy]
+        return tuple(outputs)
+    except (IndexError, TypeError) as e:
+        pass
+
+    t = time()
+    # 0D solver (array not given for any of the arguments)
+    if x_arg is None:
+        maxed_it, output = iterator(*args, field=field, **kwargs)
+        print(f'0D Iterator ran in {round((time() - t) / 60, 2)} minutes')
+        print(f'Ran to {maxed_it + 1} iterations.')
+        print('Output:')
+        print(output[-1])
+        values_list = output
+
+    # 1D solver (array given for one of the arguments)
+    else:
+        x_values = kwargs[x_arg]
+        values_list = []
+        for idx, value in enumerate(tqdm(x_values, disable=disable)):
+            t0 = time()
+            kwargs[x_arg] = value
+            maxed_it, output = iterator(*args, field=field, **kwargs)
+            if disable:
+                print(f'{x_arg} = {value} solved in {round(time() - t0)} seconds.')
+                print(f'Ran to {maxed_it+1} iterations.')
+                print('Output:')
+                print(output[-1])
+            values_list.append(output[-1])
+        print(f'1D Iterator ran in {round((time() - t)/60, 2)} minutes')
+        kwargs[x_arg] = x_values
+
+    # turns a list of tuples into a tuple of np.arrays
+    output_tuple = tuple(map(np.array, zip(*values_list)))
+    # tries to save to files
+    try:
+        handle = f'{field.__name__}_{int(time())}'
+        filename = os.path.join(directory, handle)
+        for idx_o, output in enumerate(output_tuple):
+            np.save(filename + f'_output{idx_o}.npy', output)
+        np.savez(filename, *args, **kwargs)
+        print(f'Saved as {handle} :)')
+    except TypeError:
+        print('Results not saved.')
+
+    return output_tuple
+
+def solve_old(field, *args, rand = None, use_files = False, disable = False, **kwargs):
 
     x_arg = None
     x_values = None
 
     if rand is None:
-        directory = 'FP1d'
+        directory = 'FP1d_old'
         idc = ''
         new_args = args
     else:

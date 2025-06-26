@@ -1,7 +1,7 @@
 from MCfuncs import MC2d_Lb, mags_id
 import numpy as np
 from matplotlib import pyplot as plt
-from FPfields import NoNsEx, m_in, initial_q
+from FPfields import NoNsEx, m_in, initial_q_LL
 import FPfuncs as fp
 
 samples = 100
@@ -60,8 +60,8 @@ initial_m = m_in()
 
 f_tr = [lambda m_entry: not fp.thresh_NoNsEx(m_entry, cutoff_dis), fp.tr_det_NoNsEx]
 
-args = initial_m+pert, initial_q
-m_FP, q, n = fp.solve(field, *args, use_files = True, disable = False, **kwargs_FP, **kwargs)
+args = initial_m+pert, initial_q_LL
+m_FP, q, n = fp.solve_old(field, *args, use_files = True, disable = False, **kwargs_FP, **kwargs)
 
 
 x_values = 1 / x_values[::-1]

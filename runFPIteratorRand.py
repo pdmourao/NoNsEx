@@ -1,6 +1,6 @@
 import FPfuncs as fp
 import numpy as np
-from FPfields import NoNsEx, m_in, initial_q
+from FPfields import NoNsEx, m_in, initial_q_LL
 from matplotlib import pyplot as plt
 
 samples = 10
@@ -14,7 +14,7 @@ e = 0.4
 other_initial = np.array([[1-e,   e, e],
                           [1-e,   e, e],
                           [1-e,   e, e]])
-args = other_initial, initial_q
+args = other_initial, initial_q_LL
 print('Initial arguments:')
 print(args)
 
@@ -38,7 +38,7 @@ cutoff = 0.9
 
 for idx in range(samples):
     print(f'\nSolving sample {idx+1}/{samples}...')
-    m_array[idx], q_array[idx], n_array[idx] = fp.solve(field, *args, use_files = True, rand = (idx, eps), **kwargs)
+    m_array[idx], q_array[idx], n_array[idx] = fp.solve_old(field, *args, use_files = True, rand = (idx, eps), **kwargs)
 
 for idx in range(samples):
     m = m_array[idx]

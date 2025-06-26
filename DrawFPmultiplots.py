@@ -1,6 +1,6 @@
 import numpy as np
 import FPfuncs as fp
-from FPfields import NoNsEx, m_in, initial_q
+from FPfields import NoNsEx, m_in, initial_q_LL
 from matplotlib import pyplot as plt
 
 pick_in = False
@@ -30,10 +30,10 @@ pert_in = np.array([[ 1, -1, -1],
                     [-1, -1,  1]])
 
 if pick_in:
-	args = m_in() + pert_eps*pert_in, initial_q
+	args = m_in() + pert_eps*pert_in, initial_q_LL
 	title_str = 'Input'
 else:
-	args = m_in(4/10) + pert_eps*pert_out, initial_q
+	args = m_in(4/10) + pert_eps*pert_out, initial_q_LL
 	title_str = 'Output'
 
 fig, axs = plt.subplots(len(plot_values), squeeze = False)
@@ -43,7 +43,7 @@ for ax, value_p in zip(axs.flat, plot_values):
 	for value in label_values:
 
 		inputs = {**others, x_arg: x_values, label_arg: value, plot_arg: value_p}
-		m, q, n = fp.solve(NoNsEx, *args, use_files=True, disable=False, **inputs)
+		m, q, n = fp.solve_old(NoNsEx, *args, use_files=True, disable=False, **inputs)
 
 		idx_tr = len(m)
 		for idx_m, m_value in enumerate(m):
