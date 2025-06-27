@@ -63,7 +63,7 @@ def HLH(m, q, p, alpha, beta, h, errorbound = 0):
     new_m = scipy.integrate.quad(integrandHLm, -np.inf, np.inf, args = (m, q, p, h, alpha, beta))[0]
     new_q = scipy.integrate.quad(integrandHLq, -np.inf, np.inf, args = (m, q, p, h, alpha, beta))[0]
     new_p = q / ((1 - beta * (1 - q)) ** 2)
-    return new_m, new_q
+    return new_m, new_q, new_p
 
 
 def NoNsLL(m, lmb, T, H):
@@ -166,10 +166,7 @@ def NoNsQ(x1, x2, h, errorbound = 0):
 vNoNsQ = np.vectorize(NoNsQ, signature = '(n),(),(),()->()')
 
 # Lines are patterns, columns are layers
-def NoNsEx(m, q, n = None, *, beta, lmb, rho, alpha, H, errorbound = 0, p_reg = 1):
-
-    if n is None:
-        n = m/(1+rho)
+def NoNsEx(m, q, n, beta, lmb, rho, alpha, H, errorbound = 0, p_reg = 1):
 
     gn = g(lmb) @ n
 
@@ -342,7 +339,8 @@ def NoNsEx_HL(m, q, p, alpha, beta, lmb, h, errorbound = 0):
 
     return new_m, new_q, new_p
 
-
+def input_checker(m, q, p, alpha, beta, lmb, h, errorbound = 0):
+    print(alpha, beta, lmb, h)
 
 pert_spur = np.array([[ 1, -1, -1],
                       [ 1, -1, -1],
@@ -355,5 +353,3 @@ initial_q_i = np.full(shape = (3,3), fill_value = 1.)
 initial_q_o = np.diag(initial_q_LL)
 initial_p_i = np.full(shape = (3,3), fill_value = 1.)
 initial_p_o = np.diag(initial_q_LL)
-
-

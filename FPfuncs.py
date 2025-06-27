@@ -3,56 +3,44 @@ import numpy as np
 from tqdm import tqdm
 import os
 from storage import npz_file_finder
-from copy import deepcopy
+from multiprocessing import Pool
 
-def iterator(*args, max_it, field, not_all_neg = [], dif_length = 0, error = 0, order = None, min_it = 1,
+#comment
+def iterator(*args, max_it, field, not_all_neg = [], error = 0, order = None, min_it = 1,
              pbar = None, **kwargs):
-    iter_list = [args]
 
+    new_iter = args
     it = 0
-    dif_list = []
-    for it in range(max_it):
-        old_iter = iter_list[-1]
+
+    while it < max_it:
+        it += 1
+        old_iter = new_iter
         # calculates new entry
         new_iter = field(*old_iter, **kwargs)
-        for output in new_iter:
-            print(output)
-        # print(new_ms)
-        # print(new_ms[0]-new_ms[1])
 
-        # print(new_n)
-        # print(new_q)
-        # calculate the error
-        # if the difference is not smaller than error, add it to history, otherwise break
-
-        changeable_iter = list(new_iter)
+        # calculate differences
         difs = [np.linalg.norm(new_iter[idx] - old_iter[idx], ord=order) for idx in range(len(old_iter))]
         # this part is just if we want to avoid results oscillating between something and its symmetric
         # this is only checked for the list of indices not_all_neg
-        for reversable_idx in not_all_neg:
-            reversed_dif = np.linalg.norm(new_iter[reversable_idx] + old_iter[reversable_idx], ord=order)
-            if reversed_dif < difs[reversable_idx]:
-                difs[reversable_idx] = reversed_dif
-                changeable_iter[reversable_idx] = - changeable_iter[reversable_idx]
+        if len(not_all_neg) > 0:
+            changeable_iter = list(new_iter)
+            for reversable_idx in not_all_neg:
+                reversed_dif = np.linalg.norm(new_iter[reversable_idx] + old_iter[reversable_idx], ord=order)
+                if reversed_dif < difs[reversable_idx]:
+                    difs[reversable_idx] = reversed_dif
+                    changeable_iter[reversable_idx] = - changeable_iter[reversable_idx]
+            new_iter = tuple(changeable_iter)
 
         # print(f'error = {difs[0]}')
         if it >= min_it and sum(difs) < error:
             break
 
-        iter_list.append(tuple(changeable_iter))
-        dif_list.append(difs[0])
-
-    if dif_length > 0:
-        output_difs = np.array(dif_list)[-dif_length:]
-    else:
-        output_difs = len(dif_list)
-
     if pbar is not None:
         pbar.update(1)
 
-    return output_difs, iter_list
+    return it, *new_iter
 
-def solve(field, *args, x_arg = None, directory = None, disable = False, **kwargs):
+def solve(field, *args, x_arg = None, directory = None, disable = False, parallel_CPUs = False, **kwargs):
 
 
     # try to get results already computed from files
@@ -65,49 +53,62 @@ def solve(field, *args, x_arg = None, directory = None, disable = False, **kwarg
         file_list_npy = [os.path.join(directory, file) for file in os.listdir(directory) if fname_os[:-4] in os.path.join(directory, file)]
         file_list_npy.sort()
         outputs = [np.load(file) for file in file_list_npy]
-        return tuple(outputs)
+        output_tuple = tuple(outputs)
     except (IndexError, TypeError) as e:
-        pass
+        t = time()
+        # 0D solver (array not given for any of the arguments)
+        if x_arg is None:
+            output_tuple = iterator(*args, field=field, **kwargs)
+            print(f'0D Iterator ran in {round((time() - t) / 60, 2)} minutes')
+            print(f'Ran to {output_tuple[0]} iterations.')
+            print('Output:')
+            [print(output) for output in output_tuple]
 
-    t = time()
-    # 0D solver (array not given for any of the arguments)
-    if x_arg is None:
-        maxed_it, output = iterator(*args, field=field, **kwargs)
-        print(f'0D Iterator ran in {round((time() - t) / 60, 2)} minutes')
-        print(f'Ran to {maxed_it + 1} iterations.')
-        print('Output:')
-        print(output[-1])
-        values_list = output
+        # 1D solver (array given for one of the arguments)
+        else:
+            x_values = kwargs[x_arg]
+            output_list = []
 
-    # 1D solver (array given for one of the arguments)
-    else:
-        x_values = kwargs[x_arg]
-        values_list = []
-        for idx, value in enumerate(tqdm(x_values, disable=disable)):
-            t0 = time()
-            kwargs[x_arg] = value
-            maxed_it, output = iterator(*args, field=field, **kwargs)
+            fixed_kwargs = dict(kwargs)
+            fixed_kwargs.pop(x_arg)
             if disable:
-                print(f'{x_arg} = {value} solved in {round(time() - t0)} seconds.')
-                print(f'Ran to {maxed_it+1} iterations.')
-                print('Output:')
-                print(output[-1])
-            values_list.append(output[-1])
-        print(f'1D Iterator ran in {round((time() - t)/60, 2)} minutes')
-        kwargs[x_arg] = x_values
+                pbar = None
+            else:
+                pbar = tqdm(total=len(x_values))
 
-    # turns a list of tuples into a tuple of np.arrays
-    output_tuple = tuple(map(np.array, zip(*values_list)))
-    # tries to save to files
-    try:
-        handle = f'{field.__name__}_{int(time())}'
-        filename = os.path.join(directory, handle)
-        for idx_o, output in enumerate(output_tuple):
-            np.save(filename + f'_output{idx_o}.npy', output)
-        np.savez(filename, *args, **kwargs)
-        print(f'Saved as {handle} :)')
-    except TypeError:
-        print('Results not saved.')
+            # the version of the iterator used for these parameters
+            def this_iterator(x):
+                t0 = time()
+                output = iterator(*args, field=field, pbar=pbar, **{x_arg: x}, **fixed_kwargs)
+                if disable:
+                    print(f'{x_arg} = {x} solved in {round(time() - t0)} seconds.')
+                    print(f'Ran to {output[0]} iterations.')
+                    print('Output:')
+                    print(out for out in output)
+                return output
+
+            if parallel_CPUs:
+                if __name__ == "__main__":
+                    with Pool() as pool:
+                        output_list = pool.map(this_iterator, x_values)
+            else:
+                output_list = [this_iterator(value) for value in x_values]
+
+            if not disable:
+                pbar.close()
+            print(f'1D Iterator ran in {round((time() - t)/60, 2)} minutes')
+            # turns a list of tuples into a tuple of np.arrays
+            output_tuple = tuple(map(np.array, zip(*output_list)))
+        # tries to save to files
+        try:
+            handle = f'{field.__name__}_{int(time())}'
+            filename = os.path.join(directory, handle)
+            for idx_o, output in enumerate(output_tuple):
+                np.save(filename + f'_output{idx_o}.npy', output)
+            np.savez(filename, *args, **kwargs)
+            print(f'Saved as {handle} :)')
+        except TypeError:
+            print('Results not saved.')
 
     return output_tuple
 

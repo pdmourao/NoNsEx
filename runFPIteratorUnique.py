@@ -7,6 +7,7 @@ from FPfuncs import recovered_pats
 field = NoNsEx_HL
 directory = 'FP1d'
 disable = True
+parallel = False
 
 eps = 1e-8
 
@@ -33,31 +34,30 @@ for key, value in kwargs.items():
     if key != 'h' and not np.isscalar(value):
         assert x_arg is None, 'Warning: multiple arrays given as inputs.'
         x_arg = key
-        x_values = [value, value]
 
 args_o = m_in(4/10)+eps*pert_spur, initial_q_o, initial_p_o
-
-m_hop, q_hop, p_hop = fp.solve(HLH, 9/10, 1, 1, directory = directory, disable = disable, x_arg = x_arg, **kwargs_hop)
-
-m_out, q_out, p_out = fp.solve(field, *args_o, directory = directory, disable = disable, x_arg = x_arg, **kwargs)
-
-
 args_i = m_in() + eps*pert_dis, initial_q_i, initial_p_i
 
-m_in, q_in, p_in = fp.solve(field, *args_i, directory = directory, disable=disable, x_arg = x_arg, **kwargs)
+outputs=[
+    fp.solve(HLH, 9/10, 1, 1, directory = directory, disable = disable, x_arg = x_arg, parallel_CPUs = parallel, **kwargs_hop),
+    fp.solve(field, *args_o, directory = directory, disable = disable, x_arg = x_arg, parallel_CPUs = parallel, **kwargs)
+]
 
-if x_arg is None:
-    x_values = [np.arange(m_in), np.arange(m_out)]
-elif x_arg == 'beta':
-    x_arg = 'T'
-    x_values = [1/x_val for x_val in x_values]
+# fp.solve(field, *args_i, directory = directory, disable=disable, x_arg = x_arg, **kwargs)
 
-m_values = [m_in, m_out]
+# x_arg = None
 
-graph = False
+if x_arg is not None:
 
-if graph:
-    fig, axes = plt.subplots(2)
+    if x_arg == 'beta':
+        x_values = 1 / kwargs[x_arg]
+        x_arg = 'T'
+    else:
+        x_values = kwargs[x_arg]
+
+    m_values = [output[1] for output in outputs]
+
+    fig, axes = plt.subplots(len(outputs))
 
     exempt_from_title = [x_arg, 'max_it', 'ibound', 'error', 'alpha', 'H']
 

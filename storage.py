@@ -2,6 +2,8 @@ import os
 import numpy as np
 import json
 from functools import reduce
+from tqdm import tqdm
+import time
 
 def npz_file_finder(directory, *args, prints = False, file_spec ='', **kwargs):
 
@@ -59,3 +61,10 @@ def mathToPython(file, directory = None):
         data = np.transpose(np.reshape(np.fromfile(f, dtype=np.dtype('float64'),
                                                    count=reduce(lambda x, y: x * y, dims)), dims))
     return data
+
+def testfunc(a,b):
+    output = (a,b)
+    return 10, *output
+
+x = testfunc(1,2)
+print(x)
