@@ -1,5 +1,5 @@
 import numpy as np
-import scipy
+from scipy import special, integrate
 from time import time, process_time
 import math
 
@@ -9,11 +9,18 @@ import math
 # This way the FixedPoint.iterate method can feed the output as input directly
 # And it works cleanly regardless of how many outputs / inputs are necessary
 
-def partmHopEx(n, beta, rho, errorbound):
-    lowerbound = scipy.special.erfinv(-1 + errorbound)
-    upperbound = scipy.special.erfinv(1 - errorbound)
+def gauss_int(f, errorbound):
+    lowerbound = special.erfinv(-1 + errorbound)
+    upperbound = special.erfinv(1 - errorbound)
 
-    partm = (1/4)*scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2) * (
+    return integrate.quad(lambda theta: (1 / np.sqrt(2 * np.pi)) * np.exp(-theta ** 2 / 2) * f(theta),
+                          lowerbound, upperbound)[0]
+
+def partmHopEx(n, beta, rho, errorbound):
+    lowerbound = special.erfinv(-1 + errorbound)
+    upperbound = special.erfinv(1 - errorbound)
+
+    partm = (1/4) * integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2) * (
         np.tanh(beta*(n[0]+n[1]+n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n))
         +np.tanh(beta*(n[0]+n[1]-n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n))
         +np.tanh(beta*(n[0]-n[1]+n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n))
@@ -21,10 +28,10 @@ def partmHopEx(n, beta, rho, errorbound):
     return partm
 
 def partqHopEx(n, beta, rho, errorbound = 0):
-    lowerbound = scipy.special.erfinv(-1 + errorbound)
-    upperbound = scipy.special.erfinv(1 - errorbound)
+    lowerbound = special.erfinv(-1 + errorbound)
+    upperbound = special.erfinv(1 - errorbound)
 
-    partq = (1/4)*scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2) * (
+    partq = (1/4) * integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2) * (
         (np.tanh(beta*(n[0]+n[1]+n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n)))**2
         +(np.tanh(beta*(n[0]+n[1]-n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n)))**2
         +(np.tanh(beta*(n[0]-n[1]+n[2])+z*beta*np.sqrt(rho)*np.linalg.norm(n)))**2
@@ -51,17 +58,17 @@ def CW(m, T, h):
     return m_out
 
 
-def integrandHLm(x, m, q, p, h, alpha, beta):
+def integrandHLm(x, m, q, p, alpha, beta, h):
     return (1/np.sqrt(2*np.pi))*np.exp(-x**2/2)*np.tanh(beta*(m+h+x*(np.sqrt(alpha * p))))
 
 
-def integrandHLq(x, m, q, p, h, alpha, beta):
+def integrandHLq(x, m, q, p, alpha, beta, h):
     return (1/np.sqrt(2*np.pi))*np.exp(-x**2/2)*(np.tanh(beta*(m+h+x*(np.sqrt(alpha * p)))))**2
 
 
 def HLH(m, q, p, alpha, beta, h, errorbound = 0):
-    new_m = scipy.integrate.quad(integrandHLm, -np.inf, np.inf, args = (m, q, p, h, alpha, beta))[0]
-    new_q = scipy.integrate.quad(integrandHLq, -np.inf, np.inf, args = (m, q, p, h, alpha, beta))[0]
+    new_m = gauss_int(lambda theta: integrandHLm(theta, m, q, p, alpha, beta, h), errorbound)
+    new_q = gauss_int(lambda theta: integrandHLq(theta, m, q, p, alpha, beta, h), errorbound)
     new_p = q / ((1 - beta * (1 - q)) ** 2)
     return new_m, new_q, new_p
 
@@ -107,38 +114,18 @@ def ginv(lmb):
     return np.linalg.inv(g(lmb))
 
 
-def T_LL(a, lmb, T, H, m):  # gives the np array [Tpp, Tpm, Tmp, Tmm]
-    beta = 1/T
-    Tlist = np.empty(4)
-    Tlist[0] = np.tanh(beta * (np.dot(g(lmb)[a], m[0]+m[1]+m[2]) + H))
-    Tlist[1] = np.tanh(beta * (np.dot(g(lmb)[a], m[0]+m[1]-m[2]) + H))
-    Tlist[2] = np.tanh(beta * (np.dot(g(lmb)[a], m[0]-m[1]+m[2]) + H))
-    Tlist[3] = np.tanh(beta * (np.dot(g(lmb)[a], m[0]-m[1]-m[2]) - H))
-    return Tlist
-
-
-def NoNsLLFull(m, q, lmb, T, H):
-    new_m = np.empty((3, 3))
-    new_q = np.zeros(3)
-    for a in range(3):
-        new_m[0][a] = np.mean(T_LL(a, lmb, T, H, m))
-        new_m[1][a] = np.mean(T_LL(a, lmb, T, H, [m[1], m[0], m[2]]))
-        new_m[2][a] = np.mean(T_LL(a, lmb, T, H, [m[2], m[1], m[0]]))
-    return new_m, new_q
-
-
 def NoNsM(x1, x2, h, errorbound = 0):
-    lowerbound = scipy.special.erfinv(-1 + errorbound)
-    upperbound = scipy.special.erfinv(1 - errorbound)
+    lowerbound = special.erfinv(-1 + errorbound)
+    upperbound = special.erfinv(1 - errorbound)
 
-    Tpp = scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
-                     * np.tanh(x1[0] + x1[1] + x1[2] + x2 * z + h), lowerbound, upperbound)[0]
-    Tpm = scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
-                     * np.tanh(x1[0] + x1[1] - x1[2] + x2 * z + h), lowerbound, upperbound)[0]
-    Tmp = scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
-                     * np.tanh(x1[0] - x1[1] + x1[2] + x2 * z + h), lowerbound, upperbound)[0]
-    Tmm = scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
-                     * np.tanh(x1[0] - x1[1] - x1[2] + x2 * z -h), lowerbound, upperbound)[0]
+    Tpp = integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
+                                   * np.tanh(x1[0] + x1[1] + x1[2] + x2 * z + h), lowerbound, upperbound)[0]
+    Tpm = integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
+                                   * np.tanh(x1[0] + x1[1] - x1[2] + x2 * z + h), lowerbound, upperbound)[0]
+    Tmp = integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
+                                   * np.tanh(x1[0] - x1[1] + x1[2] + x2 * z + h), lowerbound, upperbound)[0]
+    Tmm = integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
+                                   * np.tanh(x1[0] - x1[1] - x1[2] + x2 * z -h), lowerbound, upperbound)[0]
 
     return np.mean([Tpp, Tpm, Tmp, Tmm])
 
@@ -147,23 +134,21 @@ def NoNsMall(x1, x2, h, errorbound=0):
                      NoNsM([x1[1], x1[0], x1[2]], x2, h, errorbound),
                      NoNsM([x1[2], x1[1], x1[0]], x2, h, errorbound)])
 
-vNoNsM = np.vectorize(NoNsMall, signature='(n),(),(),()->(n)')
 
 def NoNsQ(x1, x2, h, errorbound = 0):
-    lowerbound = scipy.special.erfinv(-1+errorbound)
-    upperbound = scipy.special.erfinv(1-errorbound)
+    lowerbound = special.erfinv(-1 + errorbound)
+    upperbound = special.erfinv(1 - errorbound)
 
-    Tpp2 = scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
-                     * (np.tanh(x1[0] + x1[1] + x1[2] + x2 * z +h) ** 2), lowerbound, upperbound)[0]
-    Tpm2 = scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
-                     * (np.tanh(x1[0] + x1[1] - x1[2] + x2 * z +h) ** 2), lowerbound, upperbound)[0]
-    Tmp2 = scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
-                     * (np.tanh(x1[0] - x1[1] + x1[2] + x2 * z +h) ** 2), lowerbound, upperbound)[0]
-    Tmm2 = scipy.integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
-                     * (np.tanh(x1[0] - x1[1] - x1[2] + x2 * z -h) ** 2), lowerbound, upperbound)[0]
+    Tpp2 = integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
+                                    * (np.tanh(x1[0] + x1[1] + x1[2] + x2 * z +h) ** 2), lowerbound, upperbound)[0]
+    Tpm2 = integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
+                                    * (np.tanh(x1[0] + x1[1] - x1[2] + x2 * z +h) ** 2), lowerbound, upperbound)[0]
+    Tmp2 = integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
+                                    * (np.tanh(x1[0] - x1[1] + x1[2] + x2 * z +h) ** 2), lowerbound, upperbound)[0]
+    Tmm2 = integrate.quad(lambda z: (1 / np.sqrt(2 * np.pi)) * np.exp(-z ** 2 / 2)
+                                    * (np.tanh(x1[0] - x1[1] - x1[2] + x2 * z -h) ** 2), lowerbound, upperbound)[0]
     return np.mean([Tpp2, Tpm2, Tmp2, Tmm2])
 
-vNoNsQ = np.vectorize(NoNsQ, signature = '(n),(),(),()->()')
 
 # Lines are patterns, columns are layers
 def NoNsEx(m, q, n, beta, lmb, rho, alpha, H, errorbound = 0, p_reg = 1):
@@ -184,71 +169,8 @@ def NoNsEx(m, q, n, beta, lmb, rho, alpha, H, errorbound = 0, p_reg = 1):
 
     return m_out, q_out, n_out
 
-def NoNsEx_NtoM(q, beta, rho, lmb):
-    return (1+rho)*(np.eye(3) - beta*(rho/(1+rho))*np.diag(1-q) @ g(lmb))
-
-vNoNsEx_NtoM = np.vectorize(NoNsEx_NtoM, signature = '(d,d),(d),(),()->(d,d)')
-
-
-def NoNsExOld(m, q, T, lmb, rho, alpha, H, p_reg = 1):
-    matrix_g = g(lmb)
-    beta = 1/T
-    # print(np.eye(3) - (beta * rho / (1 + rho)) * matrix_g @ np.diag(1-q))
-    n = (1/(1+rho)) * m @ np.linalg.inv(np.eye(3)-(beta * rho / (1 + rho)) * matrix_g @ np.diag(1-q))
-    input_gn = n @ matrix_g
-    input_ab_p = np.zeros(3)
-    # input_ab_p = alpha * beta * NoN_q_to_p(beta, lmb, q, p_reg)
-    # print(input_ab_p)
-    input_q = np.sqrt(rho * (np.linalg.norm(input_gn, axis = 0)**2) + input_ab_p)
-    print(input_q)
-    m_out = np.empty((3, 3))
-    q_out = np.empty(3)
-    # print(NoNsM(beta * np.array([input_gn[0, 0], input_gn[1, 0], input_gn[2, 0]]), input_q[0], beta * H))
-    for l in range(3):
-        m_out[0,l] = NoNsM(beta * np.array([input_gn[0,l], input_gn[1,l], input_gn[2,l]]), beta * input_q[l], beta * H)
-        m_out[1, l] = NoNsM(beta * np.array([input_gn[1,l], input_gn[0,l], input_gn[2,l]]), beta * input_q[l], beta * H)
-        m_out[2, l] = NoNsM(beta * np.array([input_gn[2,l], input_gn[1,l], input_gn[0,l]]), beta * input_q[l], beta * H)
-        q_out[l] = NoNsQ(beta * np.array([input_gn[0,l], input_gn[1,l], input_gn[2,l]]), beta * input_q[l], beta * H)
-    return m_out, q_out
-
-def NoNsEx_noalpha(m, q, T, lmb, rho, alpha, H, p_reg = 1):
-
-    matrix_g = g(lmb)
-    beta = 1/T
-    n = (1/(1+rho)) * m @ np.linalg.inv(np.eye(3)-(beta * rho / (1 + rho)) * matrix_g @ np.diag(1-q))
-    input_gn = n @ matrix_g
-    input_ab_p = np.zeros(3)
-    # print(input_ab_p)
-    input_q = np.sqrt(rho * (np.linalg.norm(input_gn, axis = 0)**2) + input_ab_p)
-    # print(input_q)
-    m_out = np.empty((3, 3))
-    q_out = np.empty(3)
-    # print(NoNsM(beta * np.array([input_gn[0, l], input_gn[1, l], input_gn[2, l]]), input_q[l], beta * H))
-    for l in range(3):
-        m_out[0,l] = NoNsM(beta * np.array([input_gn[0,l], input_gn[1,l], input_gn[2,l]]), input_q[l], beta * H)
-        m_out[1, l] = NoNsM(beta * np.array([input_gn[1,l], input_gn[0,l], input_gn[2,l]]), input_q[l], beta * H)
-        m_out[2, l] = NoNsM(beta * np.array([input_gn[2,l], input_gn[1,l], input_gn[0,l]]), input_q[l], beta * H)
-        q_out[l] = NoNsQ(beta * np.array([input_gn[0,l], input_gn[1,l], input_gn[2,l]]), input_q[l], beta * H)
-    return m_out, q_out
-
-
-def NoN_q_to_p1(b, lmb, q, p_reg):
-    q0, q1, q2 = tuple(q)
-    result = -(b*lmb**2*q1*(1 - 2*lmb)**2*(b*(lmb + 1)*(q2 - 1) + 1)**2*(2*lmb**2 + lmb - 1)**3 + b*lmb**2*q2*(1 - 2*lmb)**2*(b*(lmb + 1)*(q1 - 1) + 1)**2*(2*lmb**2 + lmb - 1)**3 + 2*b*lmb**2*np.sqrt(q1*q2)*(1 - 2*lmb)**2*(b*(lmb + 1)*(q1 - 1) + 1)*(b*(lmb + 1)*(q2 - 1) + 1)*(2*lmb**2 + lmb - 1)**3 - 2*b*lmb*np.sqrt(q0*q1)*(2*lmb - 1)*(lmb**2 - (-b*(q1 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1)*(-b*(q2 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1))*(b*(lmb + 1)*(q2 - 1) + 1)*(2*lmb**2 + lmb - 1)**3 - 2*b*lmb*np.sqrt(q0*q2)*(2*lmb - 1)*(lmb**2 - (-b*(q1 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1)*(-b*(q2 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1))*(b*(lmb + 1)*(q1 - 1) + 1)*(2*lmb**2 + lmb - 1)**3 + b*q0*(lmb**2 - (-b*(q1 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1)*(-b*(q2 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1))**2*(2*lmb**2 + lmb - 1)**3 + lmb*np.sqrt(q1/q0)*(lmb**2*(2*lmb - 1)*(b*(lmb + 1)*(q0 - 1) + 1) + lmb**2*(2*lmb - 1)*(b*(lmb + 1)*(q1 - 1) + 1) - (lmb**2 - (-b*(q0 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1)*(-b*(q1 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1))*(-b*(q2 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1))**2 + lmb*np.sqrt(q2/q0)*(lmb**2*(2*lmb - 1)*(b*(lmb + 1)*(q0 - 1) + 1) + lmb**2*(2*lmb - 1)*(b*(lmb + 1)*(q1 - 1) + 1) - (lmb**2 - (-b*(q0 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1)*(-b*(q1 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1))*(-b*(q2 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1))**2)/((-2*lmb**2 - lmb + 1)*(lmb**2*(2*lmb - 1)*(b*(lmb + 1)*(q0 - 1) + 1) + lmb**2*(2*lmb - 1)*(b*(lmb + 1)*(q1 - 1) + 1) - (lmb**2 - (-b*(q0 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1)*(-b*(q1 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1))*(-b*(q2 - 1)*(2*lmb**2 + lmb - 1) - lmb + 1))**2)
-    if math.isnan(result):
-        return 1
-    else:
-        return result
-
-def NoN_q_to_p(b, lmb, q, p_reg = 1):
-    p0 = NoN_q_to_p1(b, lmb, q, p_reg)
-    p1 = NoN_q_to_p1(b, lmb, [q[2], q[0],q[1]], p_reg)
-    p2 = NoN_q_to_p1(b, lmb, [q[1], q[2], q[0]], p_reg)
-    return np.array([p0, p1, p2])
-
 def m_in(epsilon=0):
     return np.full(shape = (3, 3), fill_value = 1/2) - np.full(shape = (3, 3), fill_value = epsilon) + np.diag(np.full(3, fill_value = 2*epsilon))
-
 
 def cartesian_product(*arrays):
     la = len(arrays)
@@ -273,13 +195,6 @@ def ZL_fac(alpha, beta, g_matrix, m, C_no_ab, p12, xi, s, theta, h):
 
 def ZL_weight(alpha, beta, g_matrix, m, C_no_ab, p12, xi, s, theta, h):
     return ZL_fac(alpha, beta, g_matrix, m, C_no_ab, p12, xi, s, theta, h)/bin_sum(lambda s_den: ZL_fac(alpha, beta, g_matrix, m, C_no_ab, p12, xi, s_den, theta, h))
-
-def gauss_int(f, errorbound):
-    lowerbound = scipy.special.erfinv(-1 + errorbound)
-    upperbound = scipy.special.erfinv(1 - errorbound)
-
-    return scipy.integrate.quad(lambda theta: (1 / np.sqrt(2 * np.pi)) * np.exp(-theta ** 2 / 2) * f(theta),
-                                lowerbound, upperbound)[0]
 
 def NoNsEx_HL_m(m, C, p12, alpha, beta, g_matrix, h, errorbound = 0):
     new_m = np.zeros((3,3))

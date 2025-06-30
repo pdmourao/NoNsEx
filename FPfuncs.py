@@ -84,7 +84,7 @@ def solve(field, *args, x_arg = None, directory = None, disable = False, paralle
                     print(f'{x_arg} = {x} solved in {round(time() - t0)} seconds.')
                     print(f'Ran to {output[0]} iterations.')
                     print('Output:')
-                    print(out for out in output)
+                    [print(out) for out in output[1:]]
                 return output
 
             if parallel_CPUs:

@@ -66,5 +66,3 @@ def testfunc(a,b):
     output = (a,b)
     return 10, *output
 
-x = testfunc(1,2)
-print(x)

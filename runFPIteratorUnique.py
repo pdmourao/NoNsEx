@@ -4,8 +4,7 @@ from FPfields import HLH, NoNsEx_HL, m_in, initial_q_i, initial_q_o, initial_p_i
 from matplotlib import pyplot as plt
 from FPfuncs import recovered_pats
 
-field = NoNsEx_HL
-directory = 'FP1d'
+directory = None
 disable = True
 parallel = False
 
@@ -24,7 +23,7 @@ kwargs_hop = {'beta': 10,
           'alpha': np.linspace(0, 0.5, 100, endpoint = False),
           'h': 0,
           'max_it': 1000,
-          'errorbound': 0,
+          'errorbound': 1e-12,
           'error': 1e-10
           }
 
@@ -40,7 +39,7 @@ args_i = m_in() + eps*pert_dis, initial_q_i, initial_p_i
 
 outputs=[
     fp.solve(HLH, 9/10, 1, 1, directory = directory, disable = disable, x_arg = x_arg, parallel_CPUs = parallel, **kwargs_hop),
-    fp.solve(field, *args_o, directory = directory, disable = disable, x_arg = x_arg, parallel_CPUs = parallel, **kwargs)
+    fp.solve(NoNsEx_HL, *args_o, directory = directory, disable = disable, x_arg = x_arg, parallel_CPUs = parallel, **kwargs)
 ]
 
 # fp.solve(field, *args_i, directory = directory, disable=disable, x_arg = x_arg, **kwargs)
