@@ -2,6 +2,7 @@ import numpy as np
 from MCclasses import HopfieldMC as hop
 from tqdm import tqdm
 from time import time
+from multiprocessing import Pool
 import json
 import os
 from storage import npz_file_finder, mathToPython
@@ -228,6 +229,138 @@ def SplittingExperiment(suf, n_samples, rho_values, neurons, K, M, max_it, error
         print(f'System ran in {round(t / 60)} minutes.')
 
     return mattis_split, mattis_ex_split, max_ints_split, mattis_notsplit, mattis_ex_notsplit, max_ints_notsplit
+
+
+
+def SplittingExperiment_beta(n_samples, beta_values, neurons, K, rho, lmb, M, max_it, error, av_counter, H = 0, mixM = 0, sigma_type ='mix',
+                        quality = [1,1,1], dynamic = 'sequential', disable = False, parallel_CPUs = False):
+
+    directory = 'ToSplit_Or_NotToSplit_beta'
+
+    len_beta = len(beta_values)
+
+    inputs_sys = {'neurons': neurons, 'K': K, 'M': M, 'quality': quality, 'mixM': mixM, 'rho': rho, 'lmb': lmb}
+    inputs_sys_notsplit = dict(inputs_sys)
+    inputs_sys_notsplit['M'] = 3*M
+    inputs_sys_notsplit['rho'] = rho/3
+    inputs_sim = {'max_it': max_it, 'error': error, 'av_counter': av_counter, 'H': H}
+    inputs_json = {'sigma_type': sigma_type, 'dynamic': dynamic}
+    all_inputs = {**inputs_sys, **inputs_sim, **inputs_json}
+
+    npz_files = npz_file_finder(directory=directory, prints=False, beta = beta_values, **all_inputs)
+    if len(npz_files) > 1:
+        print('Warning: more than 1 experiments found for given inputs.')
+
+    try:
+        file_npz = npz_files[0]
+        with open(file_npz[:-3] + 'json', mode="r", encoding="utf-8") as json_file:
+            data = json.load(json_file)
+            entropy_from_os = int(data['entropy'])
+        print('File found!')
+        if n_samples > 0:
+            print('Restarting...')
+        samples_present = len([file for file in os.listdir(directory) if
+                               file_npz[:-4] in os.path.join(directory, file) and 'm_split.npy' in file])
+        print(f'There are {samples_present} sample(s) present')
+        if n_samples == 0:
+            if samples_present > 0:
+                n_samples = samples_present
+            else:
+                raise Exception('No samples present. Compute some first.')
+
+    except IndexError:
+        print('No experiments found for given inputs. Starting one.')
+        if n_samples == 0:
+            raise Exception('No complete samples present. Compute some first.')
+        file_npz = os.path.join(directory, f'MCSplit_beta{len_beta}_{int(time())}.npz')
+        entropy_from_os = np.random.SeedSequence().entropy
+        np.savez(file_npz, beta = beta_values, **inputs_sys, **inputs_sim)
+        with open(f'{file_npz[:-3]}json', mode="w", encoding="utf-8") as json_file:
+            inputs_json['entropy'] = str(entropy_from_os)
+            json.dump(inputs_json, json_file)
+
+    output_list_full = [np.zeros((n_samples, len_beta, 3, 3)), # m_split
+                     np.zeros((n_samples, len_beta, 3, 3)), # n_split
+                     np.zeros((n_samples, len_beta), dtype=int), # ints_split
+                     np.zeros((n_samples, len_beta, 3, 3)), # m_notsplit
+                     np.zeros((n_samples, len_beta, 3, 3)), # n_notsplit
+                     np.zeros((n_samples, len_beta), dtype=int) # ints_notsplit
+                     ]
+
+    for idx_s in range(n_samples):
+
+        entropy = (entropy_from_os, idx_s)
+
+        t = time()
+        print(f'\nSolving system {idx_s + 1}/{n_samples}...')
+
+        filenames = [
+            file_npz[:-4] + f'_sample{idx_s}_m_split.npy',
+            file_npz[:-4] + f'_sample{idx_s}_n_split.npy',
+            file_npz[:-4] + f'_sample{idx_s}_ints_split.npy',
+            file_npz[:-4] + f'_sample{idx_s}_m_notsplit.npy',
+            file_npz[:-4] + f'_sample{idx_s}_n_notsplit.npy',
+            file_npz[:-4] + f'_sample{idx_s}_ints_notsplit.npy'
+        ]
+
+        try:
+            for idx_f, file in enumerate(filenames):
+                output_list_full[idx_f][idx_s] = np.load(file)
+
+        except FileNotFoundError:
+
+            print('Sample not present.')
+
+            t0 = time()
+            rng_seeds = np.random.SeedSequence(entropy).spawn(2)
+            rng_seeds_split = rng_seeds[0].spawn(len_beta)
+            rng_seeds_notsplit = rng_seeds[1].spawn(len_beta)
+            print(f'Generated seeds in {round(time() - t0, 3)} s.')
+            t0 = time()
+            print('Generating systems...')
+
+            split = hop(rngSS=rng_seeds[0], sigma_type='mix', noise_dif=True, **inputs_sys)
+
+            inputs_sys_notsplit['K'] = split.pat
+
+            jointex = np.full(shape=(split.L, inputs_sys_notsplit['M'], split.K, split.N),
+                              fill_value=np.concatenate(tuple(layer for layer in split.ex)))
+
+            notsplit = hop(rngSS=rng_seeds[1], sigma_type='mix', ex=jointex,
+                           noise_dif=False, **inputs_sys_notsplit)
+            print(f'Generated systems in {round(time() - t0, 3)} s.')
+
+            def sim_func(beta, noise_split, noise_notsplit):
+                output_m_split, output_n_split, ints_split = split.simulate(dynamic=dynamic, beta=beta,
+                                                                            sim_rngSS=noise_split, cut=True,
+                                                                            av=True, **inputs_sim)
+                output_m_notsplit, output_n_notsplit, ints_notsplit = notsplit.simulate(dynamic=dynamic, beta=beta,
+                                                                                        sim_rngSS=noise_notsplit,
+                                                                                        cut=True, av=True,
+                                                                                        **inputs_sim)
+                return output_m_split, output_n_split, ints_split, output_m_notsplit, output_n_notsplit, ints_notsplit
+
+            if parallel_CPUs:
+                print(__name__) # DOES NOT WORK
+                if __name__ == "__main__":
+                    with Pool() as pool:
+                        full_outputs = pool.starmap(sim_func, tqdm(zip(beta_values, rng_seeds_split, rng_seeds_notsplit), total = len_beta, disable = disable))
+            else:
+                full_outputs = [sim_func(beta, noise_split, noise_notsplit) for beta, noise_split, noise_notsplit in
+                                tqdm(zip(beta_values, rng_seeds_split, rng_seeds_notsplit), total = len_beta, disable = disable)]
+
+            print('Saving...')
+            output_arrays = map(np.array, zip(*full_outputs))
+
+            for idx_o, output in enumerate(output_arrays):
+                np.save(filenames[idx_o], output)
+                output_list_full[idx_o][idx_s] = output
+
+
+        t = time() - t
+        print(f'System ran in {round(t / 60)} minutes.')
+
+    return tuple(output_list_full)
 
 
 def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
@@ -565,81 +698,6 @@ def MC2d_Lb(directory, save_n, save_int, n_samples, neurons, K, rho, M, mixM, lm
         print(f'System ran in {round(t / 60)} minutes.')
 
     return mattis, mattis_ex, max_ints
-
-
-def MC2d_Lb_old(neurons, K, rho, M, H, lmb, beta, max_it, error, parallel, noise_dif, sigma_type, quality,
-                av_counter=10, disable=False):
-    if parallel:
-        dynamic = 'parallel'
-    else:
-        dynamic = 'sequential'
-
-    system = hop(neurons=neurons, K=K, L=3, rho=rho, M=M, noise_dif=noise_dif, sigma_type=sigma_type, quality=quality)
-
-    len_l = len(lmb)
-    len_b = len(beta)
-    mattisses = np.zeros(shape=(len_l, len_b, 3, 3))
-
-    with tqdm(total=len_l * len_b, disable=disable) as pbar:
-
-        for idx_l, lmb_v in enumerate(lmb):
-            g = np.array([[1, - lmb_v, - lmb_v],
-                          [- lmb_v, 1, - lmb_v],
-                          [- lmb_v, - lmb_v, 1]])
-            J_lmb = gJprod(g, system.J)
-
-            for idx_b, beta_v in enumerate(beta):
-                output = np.array(system.simulate(av_counter=av_counter, error=error, J=J_lmb, beta=beta_v, H=H,
-                                                  dynamic=dynamic, max_it=max_it, cut=True)[0])
-
-                mattisses[idx_l, idx_b] = np.mean(output, axis=0)
-
-                if disable:
-                    print(f'lmb = {round(lmb_v, 2)}, b = {round(beta_v, 2)} done.')
-                    print(f'MaxSD = {np.max(np.std(output, axis=0))}')
-                    print(f'MaxDif = {np.max(np.sum(np.diff(output, axis=0), axis=0))}')
-                else:
-                    pbar.update(1)
-
-    return mattisses
-
-
-def MC1d_beta_old(neurons, K, rho, M, H, lmb, beta, max_it, error, quality, parallel, noise_dif, random_systems=True,
-                  av_counter=10, sigma_type='mix', disable=False):
-    mattisses = np.zeros(shape=(len(beta), 3, 3))
-
-    if parallel:
-        dynamic = 'parallel'
-    else:
-        dynamic = 'sequential'
-
-    if random_systems:
-        print('Generating systems...')
-        systems = [hop(L=3, noise_dif=noise_dif, neurons=neurons, K=K, lmb=lmb, rho=rho, M=M, sigma_type=sigma_type,
-                       quality=quality) for _ in tqdm(beta)]
-    else:
-        print('Generating system...')
-        systems = hop(L=3, noise_dif=noise_dif, neurons=neurons, K=K, lmb=lmb, rho=rho, M=M, sigma_type=sigma_type,
-                      quality=quality)
-
-    for idx_b, beta_value in enumerate(tqdm(beta, disable=disable)):
-        t = time()
-        if random_systems:
-            system = systems[idx_b]
-        else:
-            system = systems
-
-        output = np.array(system.simulate(beta=beta_value, dynamic=dynamic, cut=False, H=H, max_it=max_it, error=error,
-                                          av_counter=av_counter)[0])
-
-        mattisses[idx_b] = np.mean(output[-av_counter:], axis=0)
-
-        if disable:
-            print(f'\nT = {round(1 / beta_value, 2)} done.')
-            print(f'Output after {len(output) - 1} iterations ({round(time() - t, 2)}s):')
-            print(mattisses[idx_b])
-
-    return mattisses
 
 
 def pat_id(m, cutoff_rec, cutoff_mix):

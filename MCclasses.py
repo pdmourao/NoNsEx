@@ -180,7 +180,7 @@ class HopfieldMC:
 
     # It returns the full history of magnetizations
     def simulate(self, beta, max_it, dynamic, H = 0, error = 0, av_counter = 1, J = None, disable = True, prints = False,
-                 cut = True, sim_rngSS = None):
+                 cut = True, av = False, sim_rngSS = None):
 
         t = time()
         if sim_rngSS is None:
@@ -218,11 +218,15 @@ class HopfieldMC:
                     break
                 elif np.max(prev_mags_std) < error < 1:
                     break
-
         if cut:
-            return mags[-av_counter:], ex_mags[-av_counter:], saved_idx
-        else:
-            return mags, ex_mags, saved_idx
+            mags = mags[-av_counter:]
+            ex_mags = ex_mags[-av_counter:]
+
+        if av:
+            mags = np.mean(mags, axis = 0)
+            ex_mags = np.mean(ex_mags, axis=0)
+
+        return mags, ex_mags, saved_idx
 
     def simulate_full(self, beta, max_it, dynamic, H = 0, disable = True, prints = False, sim_rngSS = None):
 
