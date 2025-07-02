@@ -30,7 +30,10 @@ def iterator(*args, max_it, field, not_all_neg = [], error = 0, order = None, mi
                     difs[reversable_idx] = reversed_dif
                     changeable_iter[reversable_idx] = - changeable_iter[reversable_idx]
             new_iter = tuple(changeable_iter)
-
+        print(f'Iteration {it}:')
+        print(new_iter)
+        print('Error:')
+        print(difs)
         # print(f'error = {difs[0]}')
         if it >= min_it and sum(difs) < error:
             break

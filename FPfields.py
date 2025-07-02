@@ -59,11 +59,11 @@ def CW(m, T, h):
 
 
 def integrandHLm(x, m, q, p, alpha, beta, h):
-    return (1/np.sqrt(2*np.pi))*np.exp(-x**2/2)*np.tanh(beta*(m+h+x*(np.sqrt(alpha * p))))
+    return np.tanh(beta*(m+h+x*(np.sqrt(alpha * p))))
 
 
 def integrandHLq(x, m, q, p, alpha, beta, h):
-    return (1/np.sqrt(2*np.pi))*np.exp(-x**2/2)*(np.tanh(beta*(m+h+x*(np.sqrt(alpha * p)))))**2
+    return (np.tanh(beta*(m+h+x*(np.sqrt(alpha * p)))))**2
 
 
 def HLH(m, q, p, alpha, beta, h, errorbound = 0):

@@ -5,13 +5,13 @@ from FPfields import m_in
 import json
 
 
-directory = 'MC1d_Lb'
-excluded = ['lmb','rho', 'beta', 'H']
+directory = 'MC2d'
+excluded = []
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
 
-for file in npz_file_finder(directory):
+for file in npz_file_finder(directory, beta = beta_values):
     print('\n' + file)
     file_json = file[:-3] + 'json'
     newfile_json = file[:-4] + 'new.json'
@@ -41,7 +41,7 @@ for file in npz_file_finder(directory):
     #     print(json.load(json_oldfile))
     with np.load(file) as data:
         for key in data:
-            if key not in excluded and False:
+            if key not in excluded:
                 print(f'{key} = {data[key]}')
 
 

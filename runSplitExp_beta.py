@@ -14,10 +14,9 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 100
-interpolate_bool = True
+samples = 0
 
-T_values = np.linspace(start = 0, stop = 0.1, num = 100, endpoint = True)
+T_values = np.linspace(start = 0, stop = 0.2, num = 101, endpoint = True)
 with np.errstate(divide='ignore'):
     beta_values = 1/T_values
 
@@ -35,7 +34,7 @@ kwargs = {'neurons': 5000,
           'M': 50,
           'mixM': 0,
           'max_it': 30,
-          'error': 0.002,
+          'error': 0.005,
           'av_counter': 3,
           'quality': [1, 1, 1],
           'lmb': 0.07,
@@ -95,7 +94,7 @@ ax_success.plot(T_values, success_av_notsplit, color = colors[1])
 ax_success.set_xlim(T_values[0], T_values[-1])
 ax_success.set_ylim(0,1)
 
-ax_success.set_xlabel(r'$\rho$')
+ax_success.set_xlabel(r'$T$')
 
 ax_success.set_title('Rates of disentanglement')
 
@@ -107,7 +106,7 @@ ax_mags.errorbar(x = x_axes_notsplit, y = m_ps_notsplit, yerr = m_stds_notsplit,
 ax_mags.set_xlim(T_values[0], T_values[-1])
 ax_mags.set_ylim(0,1)
 
-ax_mags.set_xlabel(r'$\rho$')
+ax_mags.set_xlabel(r'$T$')
 ax_mags.set_ylabel('$m$')
 
 ax_mags.set_title('Recovered magnetizations')
@@ -115,6 +114,6 @@ ax_mags.set_title('Recovered magnetizations')
 plt.show()
 
 
-# plt.plot(rho_values, int_split_av, color = 'yellow')
-# plt.plot(rho_values, int_notsplit_av, color = 'green')
-# plt.show()
+plt.plot(T_values, int_split_av, color = 'yellow')
+plt.plot(T_values, int_notsplit_av, color = 'green')
+plt.show()

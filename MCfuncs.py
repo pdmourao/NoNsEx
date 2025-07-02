@@ -291,9 +291,6 @@ def SplittingExperiment_beta(n_samples, beta_values, neurons, K, rho, lmb, M, ma
 
         entropy = (entropy_from_os, idx_s)
 
-        t = time()
-        print(f'\nSolving system {idx_s + 1}/{n_samples}...')
-
         filenames = [
             file_npz[:-4] + f'_sample{idx_s}_m_split.npy',
             file_npz[:-4] + f'_sample{idx_s}_n_split.npy',
@@ -309,7 +306,8 @@ def SplittingExperiment_beta(n_samples, beta_values, neurons, K, rho, lmb, M, ma
 
         except FileNotFoundError:
 
-            print('Sample not present.')
+            t = time()
+            print(f'\nSolving system {idx_s + 1}/{n_samples}...')
 
             t0 = time()
             rng_seeds = np.random.SeedSequence(entropy).spawn(2)
@@ -356,9 +354,7 @@ def SplittingExperiment_beta(n_samples, beta_values, neurons, K, rho, lmb, M, ma
                 np.save(filenames[idx_o], output)
                 output_list_full[idx_o][idx_s] = output
 
-
-        t = time() - t
-        print(f'System ran in {round(t / 60)} minutes.')
+            print(f'System ran in {round(time() - t / 60)} minutes.')
 
     return tuple(output_list_full)
 
