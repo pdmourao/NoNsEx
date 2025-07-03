@@ -1,7 +1,7 @@
 import numpy as np
 from MCclasses import HopfieldMC as hop
 from tqdm import tqdm
-from time import time
+from time import time, process_time
 from multiprocessing import Pool
 import json
 import os
@@ -229,6 +229,58 @@ def SplittingExperiment(suf, n_samples, rho_values, neurons, K, M, max_it, error
         print(f'System ran in {round(t / 60)} minutes.')
 
     return mattis_split, mattis_ex_split, max_ints_split, mattis_notsplit, mattis_ex_notsplit, max_ints_notsplit
+
+
+def splitting_beta(entropy, beta_values, neurons, K, rho, lmb, M, max_it, error, av_counter, H = 0, mixM = 0, sigma_type ='mix',
+                        quality = [1,1,1], dynamic = 'sequential', disable = True):
+
+    len_beta = len(beta_values)
+
+    inputs_sys = {'neurons': neurons, 'K': K, 'M': M, 'quality': quality, 'mixM': mixM, 'rho': rho, 'lmb': lmb}
+    inputs_sys_notsplit = dict(inputs_sys)
+    inputs_sys_notsplit['M'] = 3*M
+    inputs_sys_notsplit['rho'] = rho/3
+    inputs_sim = {'max_it': max_it, 'error': error, 'av_counter': av_counter, 'H': H}
+    inputs_json = {'sigma_type': sigma_type, 'dynamic': dynamic}
+    all_inputs = {**inputs_sys, **inputs_sim, **inputs_json}
+
+    output_list = [np.zeros((len_beta, 3, 3)), # m_split
+                     np.zeros((len_beta, 3, 3)), # n_split
+                     np.zeros(len_beta, dtype=int), # ints_split
+                     np.zeros((len_beta, 3, 3)), # m_notsplit
+                     np.zeros((len_beta, 3, 3)), # n_notsplit
+                     np.zeros(len_beta, dtype=int) # ints_notsplit
+                     ]
+
+    t = process_time()
+
+    t0 = process_time()
+    rng_seeds = np.random.SeedSequence(entropy).spawn(2)
+    rng_seeds_split = rng_seeds[0].spawn(len_beta)
+    rng_seeds_notsplit = rng_seeds[1].spawn(len_beta)
+
+    if not disable:
+        print(f'Generated seeds in {round(process_time() - t0, 3)} s.')
+    t0 = process_time()
+
+    if not disable:
+        print('Generating systems...')
+
+    split = hop(rngSS=rng_seeds[0], sigma_type='mix', noise_dif=True, **inputs_sys)
+    inputs_sys_notsplit['K'] = split.pat
+    jointex = np.full(shape=(split.L, inputs_sys_notsplit['M'], split.K, split.N), fill_value=np.concatenate(tuple(layer for layer in split.ex)))
+    notsplit = hop(rngSS=rng_seeds[1], sigma_type='mix', ex=jointex, noise_dif=False, **inputs_sys_notsplit)
+
+    if not disable:
+        print(f'Generated systems in {round(process_time() - t0, 3)} s.')
+
+    for beta_idx, beta in enumerate(tqdm(beta_values, disable = disable)):
+        output_list[0][beta_idx], output_list[1][beta_idx], output_list[2][beta_idx] = split.simulate(dynamic=dynamic, beta=beta,sim_rngSS=rng_seeds_split[beta_idx], cut=True, av=True, **inputs_sim)
+        output_list[3][beta_idx], output_list[4][beta_idx], output_list[5][beta_idx] = notsplit.simulate(dynamic=dynamic, beta=beta, sim_rngSS=rng_seeds_notsplit[beta_idx], cut=True, av=True, *inputs_sim)
+    if not disable:
+        print(f'Sample ran in {round(process_time() - t / 60)} minutes.')
+
+    return tuple(output_list)
 
 
 
