@@ -1,6 +1,6 @@
 import numpy as np
-from matplotlib import pyplot as plt
-from MCfuncs import SplittingExperiment_beta as SEb
+import UsainBolt as Ub
+from MCfuncs import splitting_beta
 from time import time
 from MCfuncs import mags_id
 
@@ -25,8 +25,6 @@ len_beta= len(beta_values)
 disable = False
 parallel = False
 
-# PARALLEL NOT WORKING, NEED TO UNDERSTAND GUARDS
-
 kwargs = {'neurons': 5000,
           'K': 5,
           'beta_values': beta_values,
@@ -43,5 +41,9 @@ kwargs = {'neurons': 5000,
           'sigma_type': 'mix'
           }
 
-m_array_trials_split, n_array_trials_split, int_array_trials_split, m_array_trials_notsplit, n_array_trials_notsplit, int_array_trials_notsplit = SEb(disable = disable, n_samples = samples, **kwargs)
+system = Ub.Experiment(splitting_beta, directory = 'MCData', **kwargs) # initialize experiment
+output_test=system.run(10, disable = False)
+output_saved=system.read_sample(10)
+print([np.array_equal(output_test[i], output_saved[i]) for i in range(6)])
+print([np.array_equal(a1, a2) for a1, a2 in zip(output_test,output_saved)])
 

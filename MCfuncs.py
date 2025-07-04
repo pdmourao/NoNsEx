@@ -276,7 +276,7 @@ def splitting_beta(entropy, beta_values, neurons, K, rho, lmb, M, max_it, error,
 
     for beta_idx, beta in enumerate(tqdm(beta_values, disable = disable)):
         output_list[0][beta_idx], output_list[1][beta_idx], output_list[2][beta_idx] = split.simulate(dynamic=dynamic, beta=beta,sim_rngSS=rng_seeds_split[beta_idx], cut=True, av=True, **inputs_sim)
-        output_list[3][beta_idx], output_list[4][beta_idx], output_list[5][beta_idx] = notsplit.simulate(dynamic=dynamic, beta=beta, sim_rngSS=rng_seeds_notsplit[beta_idx], cut=True, av=True, *inputs_sim)
+        output_list[3][beta_idx], output_list[4][beta_idx], output_list[5][beta_idx] = notsplit.simulate(dynamic=dynamic, beta=beta, sim_rngSS=rng_seeds_notsplit[beta_idx], cut=True, av=True, **inputs_sim)
     if not disable:
         print(f'Sample ran in {round(process_time() - t / 60)} minutes.')
 

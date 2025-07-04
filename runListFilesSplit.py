@@ -7,7 +7,7 @@ import json
 # be careful running this code, its meant to copy to 'MCData'
 # take care of -14 and other things first (maybe not copy all etc)
 # save lines have been commented
-directory = None
+directory = 'ToSplit_Or_NotToSplit_beta'
 excluded = ['beta']
 
 trial = {'neurons': 5000, 'K': 5, 'M': 50, 'quality': [1, 1, 1], 'mixM': 0, 'rho': 0.45, 'lmb': 0.07, 'max_it': 30, 'error': 0.005, 'av_counter': 3, 'H': 0, 'sigma_type': 'mix', 'dynamic': 'sequential'}
@@ -45,19 +45,20 @@ for file in npz_file_finder(directory):
     with open(file_json, mode="r", encoding="utf-8") as json_file:
         data_json = json.load(json_file)
         for key in data_json:
-            # new_data[key] = data[key]
-            # if key == 'save_n':
-            #     new_data['save_int'] = False
             if key not in excluded:
                 print(f'{key}: {data_json[key]}')
     # with open(newfile_json, mode="w", encoding="utf-8") as json_file:
     #     json.dump(data_json, json_file)
 
     with np.load(file) as data_npz:
-        for key in data_npz:
+        new_data_npz = dict(data_npz)
+        for key, value in data_npz.items():
+            if key == 'beta':
+                new_data_npz['beta_values'] = value
+                new_data_npz.pop('beta')
             if key not in excluded:
-                print(f'{key} = {data_npz[key]}')
-    # np.savez(newfile_npz, data_npz)
+                print(f'{key} = {value}')
+    # np.savez(newfile_npz, **new_data_npz)
 
 
 

@@ -1,10 +1,12 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from MCfuncs import SplittingExperiment_beta as SEb
+from MCfuncs import SplittingExperiment_beta as SEb, splitting_beta
+import UsainBolt as Ub
 from time import time
 from MCfuncs import mags_id
 
 t0 = time()
+
 
 # Here we run the freqs function for varying temperatures and betas
 # Then plot the corresponding color graph
@@ -43,10 +45,11 @@ kwargs = {'neurons': 5000,
           'sigma_type': 'mix'
           }
 
-m_array_trials_split, n_array_trials_split, int_array_trials_split, m_array_trials_notsplit, n_array_trials_notsplit, int_array_trials_notsplit = SEb(disable = disable, n_samples = samples, **kwargs)
+system = Ub.Experiment(splitting_beta, directory = 'MCData', **kwargs) # initialize experiment
+m_split, n_split, its_split, m_notsplit, n_notsplit, its_notsplit = system.read() # read samples
 
 cutoff = 0.6
-all_samples = len(m_array_trials_split)
+all_samples = len(m_split)
 success_array_split = np.zeros((all_samples, len_beta))
 success_array_notsplit = np.zeros((all_samples, len_beta))
 
@@ -63,12 +66,12 @@ for idx_T, T in enumerate(T_values):
     mags_split = []
     mags_notsplit = []
     for idx_s in range(all_samples):
-        if mags_id('dis', m_array_trials_split[idx_s, idx_T], cutoff):
+        if mags_id('dis', m_split[idx_s, idx_T], cutoff):
             success_array_split[idx_s, idx_T] = 1
-            mags_split.append(np.sort(m_array_trials_split[idx_s, idx_T], axis=None)[-3:])
-        if mags_id('dis', m_array_trials_notsplit[idx_s, idx_T], cutoff):
+            mags_split.append(np.sort(m_split[idx_s, idx_T], axis=None)[-3:])
+        if mags_id('dis', m_notsplit[idx_s, idx_T], cutoff):
             success_array_notsplit[idx_s, idx_T] = 1
-            mags_notsplit.append(np.sort(m_array_trials_notsplit[idx_s, idx_T], axis=None)[-3:])
+            mags_notsplit.append(np.sort(m_notsplit[idx_s, idx_T], axis=None)[-3:])
 
     if len(mags_split) > 0:
         m_ps_split.append(np.mean(mags_split))
@@ -83,8 +86,8 @@ for idx_T, T in enumerate(T_values):
 success_av_split = np.average(success_array_split, axis=0)
 success_av_notsplit = np.average(success_array_notsplit, axis=0)
 
-int_split_av = np.average(int_array_trials_split, axis=0)
-int_notsplit_av = np.average(int_array_trials_notsplit, axis=0)
+its_split_av = np.average(its_split, axis=0)
+its_notsplit_av = np.average(its_notsplit, axis=0)
 
 colors = ['blue', 'green']
 
@@ -114,6 +117,6 @@ ax_mags.set_title('Recovered magnetizations')
 plt.show()
 
 
-plt.plot(T_values, int_split_av, color = 'yellow')
-plt.plot(T_values, int_notsplit_av, color = 'green')
+plt.plot(T_values, its_split_av, color = 'yellow')
+plt.plot(T_values, its_notsplit_av, color = 'green')
 plt.show()

@@ -76,7 +76,7 @@ def exp_finder(directory, *args, prints = False, file_spec ='', **kwargs):
         full_kwargs_num[f'arr_{idx}'] = non_kw_arg
 
     for file in os.listdir(directory):
-        if 'inputs' in file and file_spec == file[:len(file_spec)]:
+        if 'inputs.npz' in file and file_spec == file[:len(file_spec)]:
             npz_file_os = os.path.join(directory, file)
             json_file_os = os.path.join(directory, file[:-3] + 'json')
 
