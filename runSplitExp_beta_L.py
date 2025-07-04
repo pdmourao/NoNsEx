@@ -2,7 +2,7 @@ import numpy as np
 import UsainBolt as Ub
 from MCfuncs import splitting_beta
 from time import time
-from MCfuncs import mags_id
+from multiprocessing import Pool
 
 t0 = time()
 
@@ -14,16 +14,14 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 50
+samples = 100
+parallel = True
 
 T_values = np.linspace(start = 0, stop = 0.2, num = 101, endpoint = True)
 with np.errstate(divide='ignore'):
     beta_values = 1/T_values
 
 len_beta= len(beta_values)
-
-disable = False
-parallel = False
 
 kwargs = {'neurons': 5000,
           'K': 5,
@@ -42,8 +40,12 @@ kwargs = {'neurons': 5000,
           }
 
 system = Ub.Experiment(splitting_beta, directory = 'MCData', **kwargs) # initialize experiment
-output_test=system.run(10, disable = False)
-output_saved=system.read_sample(10)
-print([np.array_equal(output_test[i], output_saved[i]) for i in range(6)])
-print([np.array_equal(a1, a2) for a1, a2 in zip(output_test,output_saved)])
+samples_array = system.samples_missing(samples)
+
+if parallel:
+    if __name__ == "__main__":
+        with Pool() as pool:
+            pool.map(system.run,samples_array)
+else:
+    [system.run(s, save = True) for s in samples_array]
 

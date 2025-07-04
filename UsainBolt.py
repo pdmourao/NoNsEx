@@ -83,9 +83,9 @@ class Experiment:
             print('Experiment already set.')
 
     # run a specific sample
-    def run(self, sample, save = False, *extra_args, **extra_kwargs):
+    def run(self, sample, *extra_args, **extra_kwargs):
         output = self._func(entropy = (self._entropy, sample), *self._args, *extra_args, **extra_kwargs, **self._kwargs)
-        if save and sample not in self.samples_present:
+        if sample not in self.samples_present and self._file_prefix is not None:
             np.savez(self._file_prefix+f'sample{sample}', *output)
         return output
 

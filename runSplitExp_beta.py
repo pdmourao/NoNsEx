@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from MCfuncs import SplittingExperiment_beta as SEb, splitting_beta
+from MCfuncs import splitting_beta
 import UsainBolt as Ub
 from time import time
 from MCfuncs import mags_id
@@ -16,8 +16,6 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 0
-
 T_values = np.linspace(start = 0, stop = 0.2, num = 101, endpoint = True)
 with np.errstate(divide='ignore'):
     beta_values = 1/T_values
@@ -25,9 +23,6 @@ with np.errstate(divide='ignore'):
 len_beta= len(beta_values)
 
 disable = False
-parallel = False
-
-# PARALLEL NOT WORKING, NEED TO UNDERSTAND GUARDS
 
 kwargs = {'neurons': 5000,
           'K': 5,
@@ -48,6 +43,7 @@ kwargs = {'neurons': 5000,
 system = Ub.Experiment(splitting_beta, directory = 'MCData', **kwargs) # initialize experiment
 m_split, n_split, its_split, m_notsplit, n_notsplit, its_notsplit = system.read() # read samples
 
+# Do the graphs
 cutoff = 0.6
 all_samples = len(m_split)
 success_array_split = np.zeros((all_samples, len_beta))

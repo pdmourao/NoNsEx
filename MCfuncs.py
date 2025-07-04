@@ -2,13 +2,11 @@ import numpy as np
 from MCclasses import HopfieldMC as hop
 from tqdm import tqdm
 from time import time, process_time
-from multiprocessing import Pool
 import json
 import os
 from storage import npz_file_finder, mathToPython
 from npy_append_array import NpyAppendArray
 from scipy.interpolate import make_interp_spline
-from matplotlib import pyplot as plt
 
 
 # freqs function
@@ -234,15 +232,16 @@ def SplittingExperiment(suf, n_samples, rho_values, neurons, K, M, max_it, error
 def splitting_beta(entropy, beta_values, neurons, K, rho, lmb, M, max_it, error, av_counter, H = 0, mixM = 0, sigma_type ='mix',
                         quality = [1,1,1], dynamic = 'sequential', disable = True):
 
+    # this function runs the splitting experiment with only varying temperature
+    # see the HopfieldMC class for more details
+
     len_beta = len(beta_values)
 
-    inputs_sys = {'neurons': neurons, 'K': K, 'M': M, 'quality': quality, 'mixM': mixM, 'rho': rho, 'lmb': lmb}
+    inputs_sys = {'neurons': neurons, 'K': K, 'M': M, 'quality': quality, 'mixM': mixM, 'rho': rho, 'lmb': lmb, 'sigma_type': sigma_type}
     inputs_sys_notsplit = dict(inputs_sys)
     inputs_sys_notsplit['M'] = 3*M
     inputs_sys_notsplit['rho'] = rho/3
-    inputs_sim = {'max_it': max_it, 'error': error, 'av_counter': av_counter, 'H': H}
-    inputs_json = {'sigma_type': sigma_type, 'dynamic': dynamic}
-    all_inputs = {**inputs_sys, **inputs_sim, **inputs_json}
+    inputs_sim = {'max_it': max_it, 'error': error, 'av_counter': av_counter, 'H': H, 'dynamic': dynamic}
 
     output_list = [np.zeros((len_beta, 3, 3)), # m_split
                      np.zeros((len_beta, 3, 3)), # n_split
@@ -255,6 +254,8 @@ def splitting_beta(entropy, beta_values, neurons, K, rho, lmb, M, max_it, error,
     t = process_time()
 
     t0 = process_time()
+
+    # the rng seeds for simulate
     rng_seeds = np.random.SeedSequence(entropy).spawn(2)
     rng_seeds_split = rng_seeds[0].spawn(len_beta)
     rng_seeds_notsplit = rng_seeds[1].spawn(len_beta)
@@ -266,149 +267,24 @@ def splitting_beta(entropy, beta_values, neurons, K, rho, lmb, M, max_it, error,
     if not disable:
         print('Generating systems...')
 
-    split = hop(rngSS=rng_seeds[0], sigma_type='mix', noise_dif=True, **inputs_sys)
+    # initialize the systems
+    # first create the split system and then join the examples to create the notsplit system
+    split = hop(rngSS=rng_seeds[0], noise_dif=True, **inputs_sys)
     inputs_sys_notsplit['K'] = split.pat
     jointex = np.full(shape=(split.L, inputs_sys_notsplit['M'], split.K, split.N), fill_value=np.concatenate(tuple(layer for layer in split.ex)))
-    notsplit = hop(rngSS=rng_seeds[1], sigma_type='mix', ex=jointex, noise_dif=False, **inputs_sys_notsplit)
+    notsplit = hop(rngSS=rng_seeds[1], ex=jointex, noise_dif=False, **inputs_sys_notsplit)
 
     if not disable:
         print(f'Generated systems in {round(process_time() - t0, 3)} s.')
 
+    # run across the betas
     for beta_idx, beta in enumerate(tqdm(beta_values, disable = disable)):
-        output_list[0][beta_idx], output_list[1][beta_idx], output_list[2][beta_idx] = split.simulate(dynamic=dynamic, beta=beta,sim_rngSS=rng_seeds_split[beta_idx], cut=True, av=True, **inputs_sim)
-        output_list[3][beta_idx], output_list[4][beta_idx], output_list[5][beta_idx] = notsplit.simulate(dynamic=dynamic, beta=beta, sim_rngSS=rng_seeds_notsplit[beta_idx], cut=True, av=True, **inputs_sim)
+        output_list[0][beta_idx], output_list[1][beta_idx], output_list[2][beta_idx] = split.simulate(beta=beta,sim_rngSS=rng_seeds_split[beta_idx], cut=True, av=True, **inputs_sim)
+        output_list[3][beta_idx], output_list[4][beta_idx], output_list[5][beta_idx] = notsplit.simulate(beta=beta, sim_rngSS=rng_seeds_notsplit[beta_idx], cut=True, av=True, **inputs_sim)
     if not disable:
         print(f'Sample ran in {round(process_time() - t / 60)} minutes.')
 
     return tuple(output_list)
-
-
-
-def SplittingExperiment_beta(n_samples, beta_values, neurons, K, rho, lmb, M, max_it, error, av_counter, H = 0, mixM = 0, sigma_type ='mix',
-                        quality = [1,1,1], dynamic = 'sequential', disable = False, parallel_CPUs = False):
-
-    directory = 'ToSplit_Or_NotToSplit_beta'
-
-    len_beta = len(beta_values)
-
-    inputs_sys = {'neurons': neurons, 'K': K, 'M': M, 'quality': quality, 'mixM': mixM, 'rho': rho, 'lmb': lmb}
-    inputs_sys_notsplit = dict(inputs_sys)
-    inputs_sys_notsplit['M'] = 3*M
-    inputs_sys_notsplit['rho'] = rho/3
-    inputs_sim = {'max_it': max_it, 'error': error, 'av_counter': av_counter, 'H': H}
-    inputs_json = {'sigma_type': sigma_type, 'dynamic': dynamic}
-    all_inputs = {**inputs_sys, **inputs_sim, **inputs_json}
-
-    npz_files = npz_file_finder(directory=directory, prints=False, beta = beta_values, **all_inputs)
-    if len(npz_files) > 1:
-        print('Warning: more than 1 experiments found for given inputs.')
-
-    try:
-        file_npz = npz_files[0]
-        with open(file_npz[:-3] + 'json', mode="r", encoding="utf-8") as json_file:
-            data = json.load(json_file)
-            entropy_from_os = int(data['entropy'])
-        print('File found!')
-        if n_samples > 0:
-            print('Restarting...')
-        samples_present = len([file for file in os.listdir(directory) if
-                               file_npz[:-4] in os.path.join(directory, file) and 'm_split.npy' in file])
-        print(f'There are {samples_present} sample(s) present')
-        if n_samples == 0:
-            if samples_present > 0:
-                n_samples = samples_present
-            else:
-                raise Exception('No samples present. Compute some first.')
-
-    except IndexError:
-        print('No experiments found for given inputs. Starting one.')
-        if n_samples == 0:
-            raise Exception('No complete samples present. Compute some first.')
-        file_npz = os.path.join(directory, f'MCSplit_beta{len_beta}_{int(time())}.npz')
-        entropy_from_os = np.random.SeedSequence().entropy
-        np.savez(file_npz, beta = beta_values, **inputs_sys, **inputs_sim)
-        with open(f'{file_npz[:-3]}json', mode="w", encoding="utf-8") as json_file:
-            inputs_json['entropy'] = str(entropy_from_os)
-            json.dump(inputs_json, json_file)
-
-    output_list_full = [np.zeros((n_samples, len_beta, 3, 3)), # m_split
-                     np.zeros((n_samples, len_beta, 3, 3)), # n_split
-                     np.zeros((n_samples, len_beta), dtype=int), # ints_split
-                     np.zeros((n_samples, len_beta, 3, 3)), # m_notsplit
-                     np.zeros((n_samples, len_beta, 3, 3)), # n_notsplit
-                     np.zeros((n_samples, len_beta), dtype=int) # ints_notsplit
-                     ]
-
-    for idx_s in range(n_samples):
-
-        entropy = (entropy_from_os, idx_s)
-
-        filenames = [
-            file_npz[:-4] + f'_sample{idx_s}_m_split.npy',
-            file_npz[:-4] + f'_sample{idx_s}_n_split.npy',
-            file_npz[:-4] + f'_sample{idx_s}_ints_split.npy',
-            file_npz[:-4] + f'_sample{idx_s}_m_notsplit.npy',
-            file_npz[:-4] + f'_sample{idx_s}_n_notsplit.npy',
-            file_npz[:-4] + f'_sample{idx_s}_ints_notsplit.npy'
-        ]
-
-        try:
-            for idx_f, file in enumerate(filenames):
-                output_list_full[idx_f][idx_s] = np.load(file)
-
-        except FileNotFoundError:
-
-            t = time()
-            print(f'\nSolving system {idx_s + 1}/{n_samples}...')
-
-            t0 = time()
-            rng_seeds = np.random.SeedSequence(entropy).spawn(2)
-            rng_seeds_split = rng_seeds[0].spawn(len_beta)
-            rng_seeds_notsplit = rng_seeds[1].spawn(len_beta)
-            print(f'Generated seeds in {round(time() - t0, 3)} s.')
-            t0 = time()
-            print('Generating systems...')
-
-            split = hop(rngSS=rng_seeds[0], sigma_type='mix', noise_dif=True, **inputs_sys)
-
-            inputs_sys_notsplit['K'] = split.pat
-
-            jointex = np.full(shape=(split.L, inputs_sys_notsplit['M'], split.K, split.N),
-                              fill_value=np.concatenate(tuple(layer for layer in split.ex)))
-
-            notsplit = hop(rngSS=rng_seeds[1], sigma_type='mix', ex=jointex,
-                           noise_dif=False, **inputs_sys_notsplit)
-            print(f'Generated systems in {round(time() - t0, 3)} s.')
-
-            def sim_func(beta, noise_split, noise_notsplit):
-                output_m_split, output_n_split, ints_split = split.simulate(dynamic=dynamic, beta=beta,
-                                                                            sim_rngSS=noise_split, cut=True,
-                                                                            av=True, **inputs_sim)
-                output_m_notsplit, output_n_notsplit, ints_notsplit = notsplit.simulate(dynamic=dynamic, beta=beta,
-                                                                                        sim_rngSS=noise_notsplit,
-                                                                                        cut=True, av=True,
-                                                                                        **inputs_sim)
-                return output_m_split, output_n_split, ints_split, output_m_notsplit, output_n_notsplit, ints_notsplit
-
-            if parallel_CPUs:
-                print(__name__) # DOES NOT WORK
-                if __name__ == "__main__":
-                    with Pool() as pool:
-                        full_outputs = pool.starmap(sim_func, tqdm(zip(beta_values, rng_seeds_split, rng_seeds_notsplit), total = len_beta, disable = disable))
-            else:
-                full_outputs = [sim_func(beta, noise_split, noise_notsplit) for beta, noise_split, noise_notsplit in
-                                tqdm(zip(beta_values, rng_seeds_split, rng_seeds_notsplit), total = len_beta, disable = disable)]
-
-            print('Saving...')
-            output_arrays = map(np.array, zip(*full_outputs))
-
-            for idx_o, output in enumerate(output_arrays):
-                np.save(filenames[idx_o], output)
-                output_list_full[idx_o][idx_s] = output
-
-            print(f'System ran in {round(time() - t / 60)} minutes.')
-
-    return tuple(output_list_full)
 
 
 def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
