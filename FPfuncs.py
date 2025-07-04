@@ -32,8 +32,8 @@ def iterator(*args, max_it, field, not_all_neg = [], error = 0, order = None, mi
             new_iter = tuple(changeable_iter)
         print(f'Iteration {it}:')
         print(new_iter)
-        print('Error:')
-        print(difs)
+        # print('Error:')
+        # print(difs)
         # print(f'error = {difs[0]}')
         if it >= min_it and sum(difs) < error:
             break

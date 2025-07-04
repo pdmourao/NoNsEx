@@ -8,7 +8,7 @@ directory = None
 disable = True
 parallel = False
 
-eps = 1e-8
+eps = 0
 
 kwargs = {'lmb': 0,
           'beta': 10,
@@ -36,11 +36,15 @@ for key, value in kwargs.items():
 
 args_o = m_in(4/10)+eps*pert_spur, initial_q_o, initial_p_o
 args_i = m_in() + eps*pert_dis, initial_q_i, initial_p_i
+kwargs['alpha'] = 0.1
+kwargs_hop['alpha'] = 0.1
 
 outputs=[
-    fp.solve(HLH, 9/10, 1, 1, directory = directory, disable = disable, x_arg = x_arg, parallel_CPUs = parallel, **kwargs_hop),
-    fp.solve(NoNsEx_HL, *args_o, directory = directory, disable = disable, x_arg = x_arg, parallel_CPUs = parallel, **kwargs)
+    fp.solve(HLH, 9/10, 1, 1, directory = directory, disable = disable, **kwargs_hop),
+    fp.solve(NoNsEx_HL, *args_o, directory = directory, disable = disable, **kwargs)
 ]
+print(outputs[0])
+print(output for output in outputs[1])
 
 # fp.solve(field, *args_i, directory = directory, disable=disable, x_arg = x_arg, **kwargs)
 

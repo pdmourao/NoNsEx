@@ -1,6 +1,6 @@
 import FPfuncs as fp
 import numpy as np
-from FPfields import HLH, NoNsEx_HL, m_in, initial_q_i, initial_q_o, initial_p_i, initial_p_o, pert_dis, pert_spur
+from FPfields import HLH, NoNsEx_HL, m_in, initial_q_i, initial_q_o, initial_p_i, initial_p_o, pert_dis, pert_spur, HLH_onlyq
 from matplotlib import pyplot as plt
 from FPfuncs import recovered_pats
 
@@ -24,9 +24,8 @@ for key, value in kwargs.items():
         x_arg = key
 
 kwargs_single = dict(kwargs)
-kwargs_single['alpha'] = 0.14
-output_single = fp.solve(HLH, 9/10, 1, 1, directory = directory, disable = disable, parallel_CPUs = parallel, **kwargs_single)
-
+kwargs_single['alpha'] = 0.1
+output_single = fp.solve(HLH, 9/10, 1, 1, directory = directory, disable = disable, **kwargs_single)
 
 
 if False:

@@ -1,7 +1,18 @@
 import numpy as np
 from scipy import special, integrate
-from time import time, process_time
-import math
+from time import time, perf_counter
+from functools import wraps
+
+def timeit(func):
+    @wraps(func)
+    def timeit_wrapper(*args, **kwargs):
+        start_time = perf_counter()
+        result = func(*args, **kwargs)
+        end_time = perf_counter()
+        total_time = end_time - start_time
+        print(f'Function {func.__name__}{args} {kwargs} Took {total_time:.4f} seconds')
+        return result
+    return timeit_wrapper
 
 # functions to be used as inputs for the fixed point method
 # some of them are used just as auxiliary for the main ones that actually serve as inputs
@@ -9,6 +20,7 @@ import math
 # This way the FixedPoint.iterate method can feed the output as input directly
 # And it works cleanly regardless of how many outputs / inputs are necessary
 
+# @timeit
 def gauss_int(f, errorbound):
     lowerbound = special.erfinv(-1 + errorbound)
     upperbound = special.erfinv(1 - errorbound)
@@ -66,11 +78,21 @@ def integrandHLq(x, m, q, p, alpha, beta, h):
     return (np.tanh(beta*(m+h+x*(np.sqrt(alpha * p)))))**2
 
 
+def integrandHLq_simp(x, q, alpha, beta):
+    return (np.tanh(beta*x*(np.sqrt(alpha * q / ((1 - beta * (1 - q)) ** 2)))))**2
+
+
 def HLH(m, q, p, alpha, beta, h, errorbound = 0):
     new_m = gauss_int(lambda theta: integrandHLm(theta, m, q, p, alpha, beta, h), errorbound)
+    if new_m < 1e-6:
+        new_m=0
     new_q = gauss_int(lambda theta: integrandHLq(theta, m, q, p, alpha, beta, h), errorbound)
     new_p = q / ((1 - beta * (1 - q)) ** 2)
     return new_m, new_q, new_p
+
+def HLH_onlyq(m, q, alpha, beta, errorbound = 0):
+    new_q = gauss_int(lambda theta: integrandHLq_simp(theta, q, alpha, beta), errorbound)
+    return 0, new_q
 
 
 def NoNsLL(m, lmb, T, H):
@@ -200,38 +222,36 @@ def NoNsEx_HL_m(m, C, p12, alpha, beta, g_matrix, h, errorbound = 0):
     new_m = np.zeros((3,3))
     for layer in range(3):
         for pat in range(3):
-            new_m[layer,pat] = gauss_int(lambda theta:
-                                         bin_ev(lambda xi:
-                                                bin_sum(lambda s:
+            new_m[layer,pat] = bin_ev(lambda xi:
+                                      bin_sum(lambda s:
+                                              gauss_int(lambda theta:
                                                         xi[pat] * s[layer] *
                                                         ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h)
-                                                        )),
-                                         errorbound = errorbound)
+                                                        ,errorbound = errorbound)))
     return new_m
 
 
 def NoNsEx_HL_q(m, C, p12, alpha, beta, g_matrix, h, errorbound = 0):
     new_q = np.ones((3,3))
-    single_s = np.array([[gauss_int(lambda theta:
-                         bin_ev(lambda xi:
-                                bin_sum(lambda s:
+    single_s = np.array([[bin_ev(lambda xi:
+                                 gauss_int(lambda theta:
+                                           bin_sum(lambda s:
                                         s[layer1] * ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h))
                                 *bin_sum(lambda s:
                                         s[layer2] * ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h)
-                                        )
-                                ), errorbound = errorbound)
+                                        ), errorbound = errorbound
+                                ))
                           for layer1 in range(3)] for layer2 in range(3)])
 
     for l1 in range(3):
         for l2 in range(3):
             if l1 != l2:
-                new_q[l1,l2] = gauss_int(lambda theta:
-                                             bin_ev(lambda xi:
-                                                    bin_sum(lambda s:
-                                                            s[l1] * s[l2] *
+                new_q[l1,l2] = bin_ev(lambda xi:
+                                      bin_sum(lambda s:
+                                              gauss_int(lambda theta:
+                                                        s[l1] * s[l2] *
                                                             ZL_weight(alpha, beta, g_matrix, m, C, p12, xi, s, theta, h)
-                                                            )),
-                                             errorbound = errorbound)
+                                                            ,errorbound = errorbound)))
 
     mat_for_diag = np.array([[np.sqrt(p12[k,k]/p12[l,l])*(new_q[l,k] - single_s[l,k])
                               for k in range(3)]
@@ -268,3 +288,6 @@ initial_q_i = np.full(shape = (3,3), fill_value = 1.)
 initial_q_o = np.diag(initial_q_LL)
 initial_p_i = np.full(shape = (3,3), fill_value = 1.)
 initial_p_o = np.diag(initial_q_LL)
+
+print(integrate.quad(lambda theta: (1 / np.sqrt(2 * np.pi)) * np.exp(-theta ** 2 / 2) * np.tanh(10*(-0.2 + theta*np.sqrt(0.16*1))), -np.inf, np.inf)[0])
+
