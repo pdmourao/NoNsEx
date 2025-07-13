@@ -6,12 +6,12 @@ import json
 
 
 directory = 'MC2d'
-excluded = []
+excluded = ['rho', 'lmb']
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
 
-for file in npz_file_finder(directory, beta = beta_values):
+for file in npz_file_finder(directory, beta = np.inf, noise_dif = True):
     print('\n' + file)
     file_json = file[:-3] + 'json'
     newfile_json = file[:-4] + 'new.json'

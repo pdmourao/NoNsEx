@@ -15,7 +15,7 @@ t0 = time()
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
 samples = 100
-parallel = True
+parallel = False
 
 T_values = np.linspace(start = 0, stop = 0.2, num = 101, endpoint = True)
 with np.errstate(divide='ignore'):
@@ -46,6 +46,6 @@ if parallel:
     if __name__ == "__main__":
         with Pool() as pool:
             pool.map(system.run,samples_array)
-else:
-    [system.run(s, save = True) for s in samples_array]
+elif not parallel:
+    [system.run(s) for s in samples_array]
 

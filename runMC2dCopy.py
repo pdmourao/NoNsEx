@@ -25,8 +25,8 @@ y_values = np.linspace(start = 0, stop = 0.5, num = 50)
 
 disable = False
 
-kwargs = {'neurons': 3000,
-          'K': 3,
+kwargs = {'neurons': 5000,
+          'K': 5,
           'beta': 5,
           'H': 0,
           'M': 50,
@@ -48,34 +48,36 @@ len_y = len(y_values)
 m_array_trials, n_array_trials, int_array_trials = MC2d(directory = 'MC2d', disable = disable, n_samples = samples, x_arg = x_arg,
                                       y_arg = y_arg, x_values = x_values, y_values = y_values, **kwargs)
 
-cutoff = 0.8
-# print(m_array_trials)
+graph = False
+if graph:
+    cutoff = 0.8
+    # print(m_array_trials)
 
-fig, ax = plt.subplots(1)
-gridvec_toplot(ax, 'dis', m_array_trials, limx0 = x_values[0], limx1 = x_values[-1],
-               limy0 = y_values[0], limy1 = y_values[-1], cutoff = cutoff, beta = kwargs['beta'])
+    fig, ax = plt.subplots(1)
+    gridvec_toplot(ax, 'dis', m_array_trials, limx0 = x_values[0], limx1 = x_values[-1],
+                   limy0 = y_values[0], limy1 = y_values[-1], cutoff = cutoff, beta = kwargs['beta'])
 
-if x_arg == 'lmb':
-    x_arg = 'lambda'
-if y_arg == 'lmb':
-    y_arg = 'lambda'
+    if x_arg == 'lmb':
+        x_arg = 'lambda'
+    if y_arg == 'lmb':
+        y_arg = 'lambda'
 
-ax.set_xlabel(rf'$\{x_arg}$')
-ax.set_ylabel(rf'$\{y_arg}$')
+    ax.set_xlabel(rf'$\{x_arg}$')
+    ax.set_ylabel(rf'$\{y_arg}$')
 
-beta_title = rf'\infty' if np.isinf(kwargs['beta']) else kwargs['beta']
+    beta_title = rf'\infty' if np.isinf(kwargs['beta']) else kwargs['beta']
 
-ax.set_title(rf'$\beta = {beta_title}$')
-plt.show()
+    ax.set_title(rf'$\beta = {beta_title}$')
+    plt.show()
 
-# print(np.max(int_array_trials, axis=0))
-fig, ax = plt.subplots(1)
-vec_for_imshow = np.transpose(np.flip(np.max(int_array_trials, axis=0), axis=-1))
+    # print(np.max(int_array_trials, axis=0))
+    fig, ax = plt.subplots(1)
+    vec_for_imshow = np.transpose(np.flip(np.max(int_array_trials, axis=0), axis=-1))
 
-ax.imshow(vec_for_imshow, cmap='Reds', vmin=0, vmax=kwargs['max_it'], aspect='auto', interpolation='nearest',
-              extent=[x_values[0], x_values[-1], y_values[0], y_values[-1]])
+    ax.imshow(vec_for_imshow, cmap='Reds', vmin=0, vmax=kwargs['max_it'], aspect='auto', interpolation='nearest',
+                  extent=[x_values[0], x_values[-1], y_values[0], y_values[-1]])
 
-ax.set_xlim(x_values[0], x_values[-1])
-ax.set_ylim(y_values[0], y_values[-1])
-plt.show()
+    ax.set_xlim(x_values[0], x_values[-1])
+    ax.set_ylim(y_values[0], y_values[-1])
+    plt.show()
 

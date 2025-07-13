@@ -91,6 +91,7 @@ class Experiment:
 
     # detect which samples are present
     def samples_present(self):
+        assert self._file_prefix is not None, 'Method samples_present needs valid experiment.'
         return [int(file.split('_sample')[-1][:-4]) for file in os.listdir(self._directory) if
                                 self._file_prefix + 'sample' in os.path.join(self._directory, file)]
 
@@ -101,6 +102,7 @@ class Experiment:
 
     # read a specific sample
     def read_sample(self, sample):
+        assert self._file_prefix is not None, 'Method read_sample needs valid experiment.'
         filename = self._file_prefix + f'sample{sample}.npz'
         with np.load(filename) as data:
             output = tuple(data.values())

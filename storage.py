@@ -59,7 +59,7 @@ def npz_file_finder(directory, *args, prints = False, file_spec ='', **kwargs):
 
     return file_list
 
-def exp_finder(directory, *args, prints = False, file_spec ='', **kwargs):
+def exp_finder(directory, *args, prints = False, force_equality = True, file_spec ='', **kwargs):
 
     kwargs_json = {}
     kwargs_num = {}
@@ -80,17 +80,26 @@ def exp_finder(directory, *args, prints = False, file_spec ='', **kwargs):
             npz_file_os = os.path.join(directory, file)
             json_file_os = os.path.join(directory, file[:-3] + 'json')
 
-            verdict = True
-
-            with np.load(npz_file_os) as data:
-                for key, value in full_kwargs_num.items():
-                    if not np.array_equal(data[key], value):
+            if force_equality:
+                with np.load(npz_file_os) as np_data:
+                    try:
+                        np.testing.assert_equal(dict(np_data), full_kwargs_num)
+                        with open(json_file_os, mode="r", encoding="utf-8") as json_file:
+                            json_data = json.load(json_file)
+                            json_data.pop('entropy')
+                            verdict = json_data == kwargs_json
+                    except AssertionError:
                         verdict = False
-            if len(kwargs_json) > 0:
+            else:
+                verdict = True
+                with np.load(npz_file_os) as data:
+                    for key, value in full_kwargs_num.items():
+                        if not np.array_equal(data[key], value):
+                            verdict = False
                 with open(json_file_os, mode="r", encoding="utf-8") as json_file:
                     data = json.load(json_file)
                     for key, value in kwargs_json.items():
-                        if data[key] != value and data[key] != list(value): # to allow for different iterables
+                        if data[key] != value and data[key] != list(value):  # to allow for different iterables
                             verdict = False
             if verdict:
                 file_list.append(npz_file_os)
@@ -114,18 +123,3 @@ def mathToPython(file, directory = None):
         data = np.transpose(np.reshape(np.fromfile(f, dtype=np.dtype('float64'),
                                                    count=reduce(lambda x, y: x * y, dims)), dims))
     return data
-
-# some tests
-if __name__ == '__main__':
-    objs = [['foo','bar','bar','black','sheet'],
-    ('foo','bar','bar','black','sheet'),
-    [1,2,3,4,5,'bar'],
-    'bar',
-    None,
-    False,
-    [], # True
-    ]
-    for i in objs:
-            print(isjson(i))
-    x=list[objs[1]]
-    print(x)

@@ -1,5 +1,5 @@
 import numpy as np
-from time import time
+from time import time, process_time
 from tqdm import tqdm
 
 # Class HopfieldMC simulates one HopfOfHopfs system
@@ -277,9 +277,9 @@ class HopfieldMC:
         if prints:
             print(f'Increased to {self.K} in {round(t,2)} seconds.')
 
-# dynamics flips exactly L*neurons neurons
+# dynamics flips each neuron one time
 # Dynamics supported:
-# - Non-random sequential (i.e. flips each neuron once)
+# - Non-random sequential (i.e. flips each neuron once, order is random)
 # - Parallel
 # It is used inside the system classes to run dynamics (method simulate)
 
@@ -291,16 +291,16 @@ class HopfieldMC:
 # (optional) parallel = True runs parallel dynamics
 
 
-def dynamics(beta, J, h, sigma, dynamic = 'sequential', dyn_rng = np.random.default_rng()):
+def dynamics(beta, J, h, sigma, dynamic, dyn_rng):
 
     layers, neurons = np.shape(sigma)
     noise = dyn_rng.uniform(low = -1, high = 1, size = (layers, neurons))
 
     if dynamic == 'parallel':
         if np.isinf(beta):
-            new_sigma = np.sign(np.einsum('kilj,lj->ki', J, sigma) + h)
+            return np.sign(np.einsum('kilj,lj->ki', J, sigma) + h)
         else:
-            new_sigma = np.sign(np.tanh(beta * (np.einsum('kilj,lj->ki', J, sigma) + h)) + noise)
+            return np.sign(np.tanh(beta * (np.einsum('kilj,lj->ki', J, sigma) + h)) + noise)
     elif dynamic == 'sequential':
         new_sigma = sigma.copy()
         neuron_sampling = dyn_rng.permutation(range(neurons))
@@ -315,7 +315,190 @@ def dynamics(beta, J, h, sigma, dynamic = 'sequential', dyn_rng = np.random.defa
                     np.tanh(beta * (np.einsum('ki, ki -> ', J[idx_L,idx_N,:,:], new_sigma)
                                     + h[idx_L, idx_N])) + noise[idx_L, idx_N])
                 new_sigma[idx_L, idx_N] = new_neuron
+        return new_sigma
     else:
-        raise Exception('No dynamic update rule given.')
+        raise Exception('No valid dynamic update rule given.')
 
-    return new_sigma
+
+class TAM:
+
+    def __init__(self, neurons, layers, patterns = 0, rngSS = np.random.SeedSequence(), lmb = None):
+
+        self.fast_noise, self.noise_patterns = tuple(np.random.default_rng(rngSS).spawn(2))
+
+        self._neurons = neurons
+        self._layers = layers
+        self.patterns = patterns
+
+        self._J = self.interaction(self.patterns)
+        self._lmb = lmb
+
+        self.h = np.zeros((layers, neurons))
+
+    @property
+    def lmb(self):
+        return self._lmb
+
+    @property
+    def neurons(self):
+        return self._neurons
+
+    @property
+    def layers(self):
+        return self._layers
+
+    @property
+    def J(self):
+        return self._J
+
+    @property
+    def patterns(self):
+        return self._patterns
+
+    @patterns.setter
+    def patterns(self, patterns):
+        if isinstance(patterns, (int,np.integer)):
+            self._patterns = self.noise_patterns.choice([-1, 1], (patterns, self.neurons))
+        else:
+            self._patterns = patterns
+
+    def interaction(self, data):
+        J = (1 / self.neurons) * np.einsum('ki, kj -> ij', data, data)
+        if self.lmb is not None:
+            J = self.insert_g(J, self.lmb)
+        return J
+
+    def mixture(self, n):
+        return np.sign(np.sum(self.patterns[:n], axis = 0))
+
+    def insert_g(self, J, lmb):
+        assert len(np.shape(J)) == 2, 'Trying to insert lambda into an already full matrix'
+        J = np.transpose(np.broadcast_to(J, (self.layers, self.layers, self.neurons, self.neurons))*g(lmb)[:,:,None,None], [0, 2, 1, 3])
+        for i in range(self.neurons):
+            for l in range(self.layers):
+                J[l,i,l,i] = 0
+        return J
+
+
+
+
+    # Method simulate runs the MonteCarlo simulation
+    # It does L x neurons flips per iteration. Each of these L x neurons flips is one call of the function "dynamics",
+    # defined in the file MCfuncs.py (See below)
+    # At each iteration it appends the new state to the list sigma_h
+    # It loops until a maximum number of iterations is reached
+    # or until the number of spins that are flipped is lower than a given threshold
+    # (this is what serves as a convergence test)
+
+    # INPUTS:
+    # max_it is the maximum number of iterations
+    # T is the temperature
+    # H is the strength of the external field (the external field already exists in self.h)
+    # J is the interaction matrix
+    # Despite self.J existing, it is given here as an input to allow the matrix g to be plugged in
+    # error is optional
+    # it stops the simulation if less than error * L * neurons spins are flipped in one iteration
+    # parallel is optional: if True, it runs parallel dynamics
+
+    # It returns the full history of magnetizations
+    def simulate(self, beta, max_it, dynamic, H, error, av_counter, g = None, sim_rngSS = None, cut = True, av = True, prints = False):
+
+        t = time()
+        if sim_rngSS is None:
+            sim_rng = np.random.default_rng(self.fast_noise)
+        else:
+            sim_rng = np.random.default_rng(sim_rngSS)
+
+        if g is None:
+            J = self.J
+        else:
+            J = np.einsum('kl,ij->klij', g, self.J)
+
+        state = self.sigma
+
+        mags = [self.mattis(state)]
+        ex_mags = [self.ex_mags(state)]
+
+        saved_idx = 0
+        for idx in range(max_it):
+            saved_idx = idx + 1
+            prev_state = state
+            state = dynamics(beta = beta, J = J, h = H * self.h, sigma = state, dynamic = dynamic, dyn_rng = sim_rng)
+            flips = np.sum(np.abs(state.astype(int) - prev_state.astype(int)))//2
+            mags.append(self.mattis(state))
+            ex_mags.append(self.ex_mags(state))
+            if idx + 2 >= av_counter:
+                prev_mags_std = np.std(mags[-av_counter:], axis=0)
+                if prints and error >= 1:
+                    print(f'{int(flips)} on iteration {idx + 1}.')
+                elif prints and error < 1:
+                    print(f'Error {np.max(prev_mags_std)} on iteration {idx + 1}')
+                if error >= 1 and flips < error:
+                    break
+                elif np.max(prev_mags_std) < error < 1:
+                    break
+
+        if cut:
+            mags = mags[-av_counter:]
+            ex_mags = ex_mags[-av_counter:]
+
+        if av:
+            mags = np.mean(mags, axis = 0)
+            ex_mags = np.mean(ex_mags, axis=0)
+
+        return mags, ex_mags, saved_idx
+
+    def simulate_full(self, beta, max_it, dynamic, H = 0, disable = True, prints = False, sim_rngSS = None):
+
+        t = time()
+        if sim_rngSS is None:
+            sim_rng = np.random.default_rng(np.random.SeedSequence(self.entropy).spawn(1)[0])
+        else:
+            sim_rng = np.random.default_rng(sim_rngSS)
+
+        state = self.sigma
+
+        states = [state]
+        mags = [self.mattis(state)]
+        ex_mags = [self.ex_mags(state)]
+
+
+        for idx in tqdm(range(max_it), disable = disable):
+            prev_state = state
+            state = dynamics(beta = beta, J = self.J, h = H * self.h, sigma = state, dynamic = dynamic, dyn_rng = sim_rng)
+            flips = np.sum(np.abs(state.astype(int) - prev_state.astype(int)))//2
+            mags.append(self.mattis(state))
+            if prints and disable:
+                print(f'\nIteration {idx+1}:')
+                print(self.mattis(state))
+            states.append(state)
+            ex_mags.append(self.ex_mags(state))
+
+        return states, mags, ex_mags
+
+    # Method mattis returns an L x L array of the magnetizations with respect to the first L patterns
+    def mattis(self, sigma):
+        m = (1 / self.neurons) * np.einsum('li, ui -> lu', sigma, self.pat[:self.L])
+        return m
+
+    def ex_mags(self, sigma):
+        n = (1 / (self.neurons*(1+self.rho)*self.r)) * np.einsum('li, lui -> lu', sigma, self.ex_av[:,:self.L])
+        return n
+
+    def add_load(self, k, prints = False):
+        assert self.rho == 0, 'add_load method only written for 0 dataset entropy'
+        t = time()
+        if prints:
+            print(f'System had {self.K} patterns.')
+        new_pats = self.rng.choice([-1, 1], (k, self.N))
+        self.J = self.J + (1 / self.N) * np.einsum('kl, ui, uj -> kilj', self.g, new_pats, new_pats)
+        self.K += np.shape(new_pats)[0]
+        t = time() - t
+        if prints:
+            print(f'Increased to {self.K} in {round(t,2)} seconds.')
+
+lmb = np.random.rand()/2
+def g(lmb):
+    g = np.full((3,3), fill_value = -lmb)
+    np.fill_diagonal(g, 1)
+    return g
