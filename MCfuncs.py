@@ -332,6 +332,7 @@ def MC2d(directory, save_n, save_int, n_samples, y_values, y_arg, x_values, x_ar
             entropy_from_os = int(data['entropy'])
         if not silent:
             print('File found!')
+            print(file_npz)
             if n_samples > 0:
                 print('Restarting...')
         samples_present = len([file for file in os.listdir(directory) if
@@ -349,9 +350,9 @@ def MC2d(directory, save_n, save_int, n_samples, y_values, y_arg, x_values, x_ar
                 raise Exception('No samples present. Compute some first.')
 
     except IndexError:
-        print('No experiments found for given inputs. Starting one.')
         if n_samples == 0:
             raise Exception('No complete samples present. Compute some first.')
+        print('No experiments found for given inputs. Starting one.')
         file_npz = os.path.join(directory, f'MC2dF_{x_arg}{y_arg}{len_x * len_y}_{int(time())}.npz')
         entropy_from_os = np.random.SeedSequence().entropy
         with open(f'{file_npz[:-3]}json', mode="w", encoding="utf-8") as json_file:

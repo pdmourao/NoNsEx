@@ -13,7 +13,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 50
+samples = 0
 interpolate_bool = True
 
 x_arg = 'rho'
@@ -48,7 +48,7 @@ len_y = len(y_values)
 m_array_trials, n_array_trials, int_array_trials = MC2d(directory = 'MC2d', disable = disable, n_samples = samples, x_arg = x_arg,
                                       y_arg = y_arg, x_values = x_values, y_values = y_values, **kwargs)
 
-graph = False
+graph = True
 if graph:
     cutoff = 0.8
     # print(m_array_trials)

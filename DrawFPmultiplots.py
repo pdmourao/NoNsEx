@@ -3,17 +3,20 @@ import FPfuncs as fp
 from FPfields import NoNsEx, m_in, initial_q_LL
 from matplotlib import pyplot as plt
 
-pick_in = False
+pick_in = True
 pert_eps =1e-8
 
-plot_arg = 'rho'
-plot_values = [0.05,0.1]
+plot_arg = 'beta'
+plot_values = [5,10]
 
-x_arg = 'beta'
-label_arg = 'lmb'
+x_arg = 'lmb'
+label_arg = 'rho'
 
-x_values = 1/np.linspace(0.01, 1, 100, endpoint = True)
-label_values = np.arange(start = 0, stop = 0.3, step = 0.05)
+beta_values = 1/np.linspace(0.01, 1, 100, endpoint = True)
+lmb_values = np.linspace(0, 0.5, 100, endpoint = False)
+label_values = np.arange(start = 0, stop = 0.125, step = 0.025)
+
+x_values = lmb_values
 
 others = {'alpha': 0,
           'H': 0,
@@ -51,11 +54,19 @@ for ax, value_p in zip(axs.flat, plot_values):
 				idx_tr = idx_m
 				break
 		# color = next(ax._get_lines.prop_cycler)['color']
-		line = ax.plot(1/x_values[:idx_tr], m[:idx_tr, 0, 0], label=rf'$\lambda$ = {round(value,3)}')
+		if x_arg == 'beta':
+			line = ax.plot(1/x_values[:idx_tr], m[:idx_tr, 0, 0], label=rf'$\lambda$ = {round(value,3)}')
+		else:
+			line = ax.plot(x_values[:idx_tr], m[:idx_tr, 0, 0], label=rf'$\rho$ = {round(value, 3)}')
 		color = line[0].get_color()
 		if len(m) > idx_tr > 0:
-			ax.vlines(x = 1/((x_values[idx_tr]+x_values[idx_tr - 1])/2), ymin = 0, ymax = m[idx_tr-1,0,0], color = color,
-					   linestyle = 'dashed')
+			if x_arg == 'beta':
+				ax.vlines(x = 1/((x_values[idx_tr]+x_values[idx_tr - 1])/2), ymin = 0, ymax = m[idx_tr-1,0,0], color = color,
+						   linestyle = 'dashed')
+			else:
+				ax.vlines(x=(x_values[idx_tr] + x_values[idx_tr - 1]) / 2, ymin=0, ymax=m[idx_tr - 1, 0, 0],
+						  color=color,
+						  linestyle='dashed')
 	title_arg = None
 	for arg in ['beta', 'lmb', 'rho']:
 		if arg not in [x_arg, label_arg]:
@@ -64,12 +75,14 @@ for ax, value_p in zip(axs.flat, plot_values):
 	ax.legend()
 	if x_arg == 'beta':
 		ax.set_xlim(1/x_values[0], 1/x_values[-1])
-		x_arg = 'T'
 	else:
 		ax.set_xlim(x_values[0],x_values[-1]+x_values[1]-x_values[0])
 
-	ax.set_ylabel('$m$')
-	ax.set_xlabel(rf'${x_arg}$')
+	if pick_in:
+		ax.set_ylabel(r'$m_0$')
+	else:
+		ax.set_ylabel(r'$m_1$')
+	ax.set_xlabel(r'$\lambda$')
 	ax.label_outer()
 
 	ax.set_title(rf'$\{plot_arg} = {value_p}$')

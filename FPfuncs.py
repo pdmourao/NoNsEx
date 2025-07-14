@@ -149,8 +149,10 @@ def solve_old(field, *args, rand = None, use_files = False, disable = False, **k
                 m = data['m']
                 q = data['q']
                 n = data['n']
+            print('File found!')
             return m, q, n
         except IndexError:
+            print(f'File not found for {kwargs}')
             pass
 
     t = time()

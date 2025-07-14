@@ -34,7 +34,7 @@ kwargs = {'neurons': 5000,
           'error': 0.005,
           'av_counter': 3,
           'quality': [1, 1, 1],
-          'lmb': 0.07,
+          'lmb': 0.1,
           'rho': 0.45,
           'dynamic': 'sequential',
           'sigma_type': 'mix'

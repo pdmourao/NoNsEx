@@ -48,10 +48,10 @@ len_x = len(x_values)
 len_y = len(y_values)
 
 
-fig, axs = plt.subplots(len(rho_values), len(c_values), squeeze = False)
+fig, axs = plt.subplots(len(c_values),len(rho_values), squeeze = False)
 for idx_r, rho_v in enumerate(rho_values):
     for idx_c, cutoff in enumerate(c_values):
-        ax = axs[idx_r,idx_c]
+        ax = axs[idx_c,idx_r]
         m_array_trials, n_array_trials, int_array_trials = MC2d_Lb(directory='MC2d_Lb', disable=disable, n_samples=0, rho = rho_v,
                                               **kwargs)
 
@@ -61,18 +61,18 @@ for idx_r, rho_v in enumerate(rho_values):
         ax.set_ylim(1.5, 20)
         ax.yaxis.set_inverted(True)
 
-        if idx_c > 0:
-            ax.set_yticks([])
-        else:
-            ax.set_ylabel(f'${fp.arg_to_label[y_arg]}$')
-        if True:
-            fig.colorbar(c, ax = ax)
-        if idx_r < len(rho_values) - 1:
+        if idx_c < len(c_values)-1:
             ax.set_xticks([])
         else:
             ax.set_xlabel(f'${fp.arg_to_label[x_arg]}$')
-        if idx_r == 0:
-            ax.set_title(f'c = {cutoff}')
+        if True:
+            fig.colorbar(c, ax = ax)
+        if idx_r > 0:
+            ax.set_yticks([])
+        else:
+            ax.set_ylabel(f'${fp.arg_to_label[y_arg]}$')
+        if idx_c == 0:
+            ax.set_title(rf'$\rho$ = {rho_v}')
 
 
 plt.show()
