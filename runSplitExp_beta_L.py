@@ -14,7 +14,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 100
+samples = 50
 parallel = False
 
 T_values = np.linspace(start = 0, stop = 0.2, num = 101, endpoint = True)
@@ -33,7 +33,7 @@ kwargs = {'neurons': 5000,
           'error': 0.005,
           'av_counter': 3,
           'quality': [1, 1, 1],
-          'lmb': 0.1,
+          'lmb': 0.08,
           'rho': 0.45,
           'dynamic': 'sequential',
           'sigma_type': 'mix'

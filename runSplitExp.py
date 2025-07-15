@@ -32,7 +32,7 @@ kwargs = {'neurons': 5000,
           'error': 0.002,
           'av_counter': 3,
           'quality': [1, 1, 1],
-          'minlmb': 0.1,
+          'minlmb': 0.08,
           'minT': 1e-3,
           'dynamic': 'sequential',
           'sigma_type': 'mix',
@@ -43,7 +43,7 @@ m_array_trials_split, n_array_trials_split, int_array_trials_split, m_array_tria
 
 graphs = False
 if graphs:
-    cutoff = 0.75
+    cutoff = 0.5
     all_samples = len(m_array_trials_split)
     success_array_split = np.zeros((all_samples, len_rho))
     success_array_notsplit = np.zeros((all_samples, len_rho))
