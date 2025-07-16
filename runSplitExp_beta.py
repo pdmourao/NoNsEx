@@ -44,10 +44,10 @@ system = Ub.Experiment(splitting_beta, directory = 'MCData', **kwargs) # initial
 print(f'There are {len(system.samples_present())} samples present.')
 m_split, n_split, its_split, m_notsplit, n_notsplit, its_notsplit = system.read() # read samples
 
-graphs = False
+graphs = True
 if graphs:
     # Do the graphs
-    cutoff = 0.6
+    cutoff = 0.7
     all_samples = len(m_split)
     success_array_split = np.zeros((all_samples, len_beta))
     success_array_notsplit = np.zeros((all_samples, len_beta))
@@ -91,9 +91,10 @@ if graphs:
     colors = ['blue', 'green']
 
     fig_success, ax_success = plt.subplots(1)
-    ax_success.plot(T_values, success_av_split, color = colors[0])
-    ax_success.plot(T_values, success_av_notsplit, color = colors[1])
+    ax_success.plot(T_values, success_av_split, color = colors[0], label = 'split')
+    ax_success.plot(T_values, success_av_notsplit, color = colors[1], label = 'not split')
     ax_success.set_xlim(T_values[0], T_values[-1])
+    ax_success.legend()
     ax_success.set_ylim(0,1)
 
     ax_success.set_xlabel(r'$T$')
@@ -105,11 +106,12 @@ if graphs:
     fig_mags, ax_mags = plt.subplots(1)
     ax_mags.errorbar(x = x_axes_split, y = m_ps_split, yerr = m_stds_split, label=f'split', color = colors[0], fmt = 'none')
     ax_mags.errorbar(x = x_axes_notsplit, y = m_ps_notsplit, yerr = m_stds_notsplit, label=f'not split', color = colors[1], fmt = 'none')
+    ax_mags.legend()
     ax_mags.set_xlim(T_values[0], T_values[-1])
-    ax_mags.set_ylim(0,1)
+    ax_mags.set_ylim(0.5,1.1)
 
     ax_mags.set_xlabel(r'$T$')
-    ax_mags.set_ylabel('$m$')
+    ax_mags.set_ylabel('$m_1$')
 
     ax_mags.set_title('Recovered magnetizations')
 

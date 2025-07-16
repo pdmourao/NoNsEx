@@ -14,7 +14,7 @@ t0 = time()
 
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
-samples = 100
+samples = 0
 interpolate_bool = True
 
 rho_values = np.linspace(start = 0.5, stop = 0, num = 200, endpoint = False)[::-1]
@@ -32,7 +32,7 @@ kwargs = {'neurons': 5000,
           'error': 0.002,
           'av_counter': 3,
           'quality': [1, 1, 1],
-          'minlmb': 0.08,
+          'minlmb': 0.07,
           'minT': 1e-3,
           'dynamic': 'sequential',
           'sigma_type': 'mix',
@@ -41,9 +41,9 @@ kwargs = {'neurons': 5000,
 
 m_array_trials_split, n_array_trials_split, int_array_trials_split, m_array_trials_notsplit, n_array_trials_notsplit, int_array_trials_notsplit = SE(disable = disable, n_samples = samples, **kwargs)
 
-graphs = False
+graphs = True
 if graphs:
-    cutoff = 0.5
+    cutoff = 0.6
     all_samples = len(m_array_trials_split)
     success_array_split = np.zeros((all_samples, len_rho))
     success_array_notsplit = np.zeros((all_samples, len_rho))
@@ -89,8 +89,9 @@ if graphs:
     colors = ['blue', 'green']
 
     fig_success, ax_success = plt.subplots(1)
-    ax_success.plot(axis_rho, success_av_split, color = colors[0])
-    ax_success.plot(axis_rho, success_av_notsplit, color = colors[1])
+    ax_success.plot(axis_rho, success_av_split, color = colors[0], label = 'split')
+    ax_success.plot(axis_rho, success_av_notsplit, color = colors[1], label = 'not split')
+    ax_success.legend()
     ax_success.set_xlim(axis_rho[0], axis_rho[-1])
     ax_success.set_ylim(0,1)
 
@@ -101,19 +102,20 @@ if graphs:
     plt.show()
 
     fig_mags, ax_mags = plt.subplots(1)
-    ax_mags.errorbar(x = x_axes_split, y = m_ps_split, yerr = m_stds_split, label=f'split', color = colors[0], fmt = 'none')
-    ax_mags.errorbar(x = x_axes_notsplit, y = m_ps_notsplit, yerr = m_stds_notsplit, label=f'not split', color = colors[1], fmt = 'none')
+    ax_mags.errorbar(x = x_axes_split, y = m_ps_split, yerr = m_stds_split, label='split', color = colors[0], fmt = 'none')
+    ax_mags.errorbar(x = x_axes_notsplit, y = m_ps_notsplit, yerr = m_stds_notsplit, label='not split', color = colors[1], fmt = 'none')
     ax_mags.set_xlim(axis_rho[0], axis_rho[-1])
-    ax_mags.set_ylim(0,1)
+    ax_mags.set_ylim(0.5,1.1)
+    ax_mags.legend()
 
     ax_mags.set_xlabel(r'$\rho$')
-    ax_mags.set_ylabel('$m$')
+    ax_mags.set_ylabel('$m_1$')
 
     ax_mags.set_title('Recovered magnetizations')
 
     plt.show()
 
 
-    # plt.plot(rho_values, int_split_av, color = 'yellow')
-    # plt.plot(rho_values, int_notsplit_av, color = 'green')
-    # plt.show()
+    plt.plot(rho_values, int_split_av, color = 'yellow')
+    plt.plot(rho_values, int_notsplit_av, color = 'green')
+    plt.show()
