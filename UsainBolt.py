@@ -30,10 +30,11 @@ class Experiment:
         return self._directory
 
     # sets the directory and checks if there's an existing experiment with matching inputs
+    # if kept at None, experiments can still be ran but they wont be saved to files nor can files be read
     @dir.setter
-    def dir(self, directory = None):
+    def dir(self, directory):
         if directory is None:
-            self._directory = os.getcwd()
+            self._directory = None
             self._file_prefix = None
             self._entropy = np.random.SeedSequence().entropy
         else:
@@ -83,9 +84,9 @@ class Experiment:
             print('Experiment already set.')
 
     # run a specific sample
-    def run(self, sample, *extra_args, **extra_kwargs):
+    def run(self, sample, *extra_args, save = True, **extra_kwargs):
         output = self._func(entropy = (self._entropy, sample), *self._args, *extra_args, **extra_kwargs, **self._kwargs)
-        if sample not in self.samples_present() and self._file_prefix is not None:
+        if sample not in self.samples_present() and self._file_prefix is not None and save:
             np.savez(self._file_prefix+f'sample{sample}', *output)
         return output
 

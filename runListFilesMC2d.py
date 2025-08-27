@@ -5,13 +5,13 @@ from FPfields import m_in
 import json
 
 
-directory = 'MC2d'
-excluded = ['rho', 'lmb']
+directory = 'MC2d_Lb'
+excluded = ['beta', 'lmb']
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
 
-for file in npz_file_finder(directory, beta = np.inf, noise_dif = True):
+for file in npz_file_finder(directory, noise_dif = False, H = 0):
     print('\n' + file)
     file_json = file[:-3] + 'json'
     newfile_json = file[:-4] + 'new.json'
@@ -25,20 +25,9 @@ for file in npz_file_finder(directory, beta = np.inf, noise_dif = True):
     with open(file_json, mode="r", encoding="utf-8") as json_file:
         data = json.load(json_file)
         for key in data:
-            # new_data[key] = data[key]
-            # if key == 'save_n':
-            #     new_data['save_int'] = False
             if key not in excluded:
                 print(f'{key}: {data[key]}')
 
-    # with open(newfile_json, mode="w", encoding="utf-8") as json_newfile:
-        # json.dump(new_data, json_newfile)
-    # with open(file_json, mode="w", encoding="utf-8") as json_file:
-    #     json.dump(new_data, json_file)
-    # with open(file_json, mode="r", encoding="utf-8") as json_file:
-    #     print(json.load(json_file))
-    # with open(oldfile_json, mode="r", encoding="utf-8") as json_oldfile:
-    #     print(json.load(json_oldfile))
     with np.load(file) as data:
         for key in data:
             if key not in excluded:
