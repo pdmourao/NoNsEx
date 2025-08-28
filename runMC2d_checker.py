@@ -46,7 +46,7 @@ sys_kwargs = {'neurons': 3000,
               'noise_dif': False
               }
 
-new_dict = {**array_dict, 'h_norm': 0, 'neurons': 3000, 'k': 3, 'm': 50, 'split': False, 'supervised': True, 'av_counter': 3, 'dynamic': 'parallel'}
+new_dict = {**array_dict, 'layers': 3, 'h_norm': 0, 'neurons': 3000, 'k': 3, 'm': 50, 'split': False, 'supervised': True, 'av_counter': 3, 'dynamic': 'parallel'}
 new_dict.pop('H')
 
 r_values = np.sqrt(1 / (x_values * sys_kwargs['M'] + 1))
@@ -77,7 +77,7 @@ try:
         data = json.load(json_file)
         entropy_from_os = int(data['entropy'])
     entropy = (entropy_from_os, idx_s)
-    mattis_from_file = np.load(file_npy)[idx_x*len_y + idx_y]
+    mattis_from_file = np.load(file_npy).reshape((len_x, len_y, 3, 3))
     ints_from_file = np.load(file_npy_ints)[idx_x * len_y + idx_y]
 except (IndexError,FileNotFoundError) as e:
     print('No file saved for these inputs')
@@ -104,12 +104,19 @@ print(f'Initialized system 1 in {round(time() - t, 3)} s.')
 t = time()
 alt_sys_kwargs = dict(sys_kwargs)
 # To use for new inputs
-mattis, ex_mags, its = disentanglement(r = r_values[idx_x], lmb = y_values[idx_y], rng_ss = rng_seeds2[idx_x * len_y + idx_y], checker = system1.J, **new_dict)
+rng1 = rng_seeds1[idx_x * len_y + idx_y]
+rng2 = rng_seeds2[idx_x * len_y + idx_y]
+
 
 
 print('System 1 running...')
-mattis1, ex_mags1, its1 = system1.simulate(dynamic = dynamic, sim_rngSS = rng_seeds1[idx_x * len_y + idx_y].spawn(1)[0], av_counter = av_counter,
-                            av = True, **array_dict)[0]
+
+
+mattis, ex_mags, its = disentanglement_2d(x_arg = 'r', y_arg = 'lmb', x_values = r_values, y_values = y_values, entropy = entropy, checker = mattis_from_file, **new_dict)
+
+mattis1, ex_mags1, its1 = system1.simulate(dynamic = dynamic, sim_rngSS = rng1.spawn(1)[0], av_counter = av_counter,
+                            av = True, **array_dict)
+
 if not np.array_equal(mattis1, mattis_from_file):
     print('1st sanity check failed.')
 else:

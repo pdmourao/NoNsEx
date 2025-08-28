@@ -91,7 +91,7 @@ compare_simulations = True
 if compare_simulations:
     time0 = time()
     print('System running...')
-    mattis, ex_mags, max_its = disentanglement_lmb_beta(neurons = sys_kwargs['neurons'], k = sys_kwargs['K'], r = r, m = sys_kwargs['M'], supervised = True, split = sys_kwargs['noise_dif'], beta = y_values, max_it = array_dict['max_it'], dynamic = dynamic,
+    mattis, ex_mags, max_its = disentanglement_lmb_beta(neurons = sys_kwargs['neurons'], layers = 3, k = sys_kwargs['K'], r = r, m = sys_kwargs['M'], supervised = True, split = sys_kwargs['noise_dif'], beta = y_values, max_it = array_dict['max_it'], dynamic = dynamic,
                                                         error = array_dict['error'], av_counter = av_counter, h_norm = array_dict['H'], lmb = l_values, entropy = entropy, checker = mattis_from_file)
     time1 = time()-time0
     if not np.array_equal(mattis, mattis_from_file):

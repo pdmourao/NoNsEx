@@ -359,17 +359,17 @@ class TAM:
 
         # usage of SeedSequence objects allows for reproducibility
         # create one seed sequence for each independent source of randomness
-        rng_seeds = rng_ss.spawn(2)
+        rng_seeds = rng_ss.spawn(3)
 
         # fast noise uses a seed sequence, since simulate always starts from the initial state
         # in order to get independent runs of the same system, one should further spawn independent seeds from this
         # simulate should do this by default, but one should keep it in mind nonetheless
-        self.fast_noise = rng_ss
+        self.fast_noise = rng_seeds[0]
         # slow noise already uses bit generators since the method add_patterns always starts from where it left off
         # if we used a seed sequence, it would start from the beginning everytime we called methods like add_pattern
         # for reproducibility, one should always keep in mind the different seeds and where each one "starts"
-        self.noise_patterns = np.random.default_rng(rng_seeds[0])
-        self.noise_examples = np.random.default_rng(rng_seeds[1])
+        self.noise_patterns = np.random.default_rng(rng_seeds[1])
+        self.noise_examples = np.random.default_rng(rng_seeds[2])
 
         self._neurons = neurons
         self._layers = layers
@@ -562,9 +562,12 @@ class TAM:
             cap = self._layers
         if self._supervised:
             big_r = self._r ** 2 + (1 - self._r ** 2) / self._m
-            return (self._r / (self._neurons * big_r * self._m)) * np.einsum('li, aui -> lu', sigma, self._examples[:,:cap])
+            av_examples = np.mean(self._examples*self._patterns, axis = 0)
+            return (self._r / (self._neurons * big_r)) * np.einsum('li, ui -> lu', sigma, av_examples[:cap])
         else:
-            return (1 / self._neurons) * np.einsum('li, aui -> alu', sigma, self._examples[:,:cap])
+            examples = self._examples*self._patterns
+            # is there a constant here?
+            return (1 / self._neurons) * np.einsum('li, aui -> alu', sigma, examples[:,:cap])
 
     # Method simulate runs the MonteCarlo simulation
     # It does L x neurons flips per iteration.
