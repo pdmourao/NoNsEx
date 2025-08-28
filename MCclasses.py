@@ -355,11 +355,21 @@ def g(layers, lmb):
 
 class TAM:
 
-    def __init__(self, neurons, layers, split, supervised, patterns = None, k = 0, lmb = -1, r = 1, m = 1, entropy = None):
+    def __init__(self, neurons, layers, split, supervised, r, m, k = 0, patterns = None, lmb = -1, rng_ss = np.random.SeedSequence()):
 
         # usage of SeedSequence objects allows for reproducibility
-        rng_ss = np.random.SeedSequence(entropy)
-        self.fast_noise, self.noise_patterns, self.noise_examples = tuple(np.random.default_rng(rng_ss).spawn(3))
+        # create one seed sequence for each independent source of randomness
+        rng_seeds = rng_ss.spawn(2)
+
+        # fast noise uses a seed sequence, since simulate always starts from the initial state
+        # in order to get independent runs of the same system, one should further spawn independent seeds from this
+        # simulate should do this by default, but one should keep it in mind nonetheless
+        self.fast_noise = rng_ss
+        # slow noise already uses bit generators since the method add_patterns always starts from where it left off
+        # if we used a seed sequence, it would start from the beginning everytime we called methods like add_pattern
+        # for reproducibility, one should always keep in mind the different seeds and where each one "starts"
+        self.noise_patterns = np.random.default_rng(rng_seeds[0])
+        self.noise_examples = np.random.default_rng(rng_seeds[1])
 
         self._neurons = neurons
         self._layers = layers
@@ -367,33 +377,35 @@ class TAM:
         self._r = r
         self._m = m
 
+        # we set k at 0 first because the pattern setter can only be called for k = 0
+        self._k = 0
+        self._patterns = self.gen_patterns(0)
+        self._examples = self.gen_examples(0)
+        # examples actually mean the Chi variables (the blur that gets applied to the archetypes)
+        # when dealing with actual examples, they are often called something like applied_examples
+
         # initializes the patterns (see patterns setter)
         # it is used when we want to give specific patterns and not randomly generate them
         # for instance when copying them from another system
-        # if it is None, it initializes a vector of dimensions 0 * neurons
-        # in that case, they get generated when k is set (see below)
-        self._k = 0
-        # we set k at 0 first because the pattern setter can only be called for k = 0
         # after this we are only allowed to add more patterns by increasing k and they are randomly generated
-        self.patterns = patterns
-        self._k = self.patterns.shape[0]
+        # examples for each pattern are randomly generated (see patterns setter)
+        if patterns is not None:
+            self.patterns = patterns
 
-        # examples actually mean the Chi variables (the blur that gets applied to the archetypes)
-        # when dealing with actual examples, they are often called something like applied_examples
-        self._examples = self.gen_examples(self._k)
-
+        # variables for the computation of the interaction matrix
         self._lmb = lmb
         self._split = split
         self._supervised = supervised
 
-        # adds random patterns and examples, and updates the interaction matrix (see method)
+        self._J = None
+        # next we add random patterns and examples
         # can only be higher than existing patterns
         if k > self._k:
-            self.add_patterns(k - self.k)
-        elif k == self._k:
-            # interaction matrix gets constructed with the interaction method
-            self._J = self.interaction(self._patterns, self._examples, self._lmb)
+            self.add_patterns(k - self.k) # this one already constructs interaction matrix by itself
         else:
+            # interaction matrix gets constructed with the set_interaction method
+            self.set_interaction()
+        if k < self._k:
             print('Invalid k input will be ignored.')
 
         # the initial state and external field to be used in simulate
@@ -438,13 +450,10 @@ class TAM:
     @patterns.setter
     def patterns(self, patterns):
         assert self._k == 0, 'Patterns have already been set. Use add_patterns instead.'
-        if patterns is None:
-            self._patterns = self.gen_patterns(0)
-            self._k = 0
-        else:
-            assert isinstance(patterns, np.ndarray) and len(patterns.shape) == 2 and patterns.shape[1] == self._neurons, 'Invalid pattern input.'
-            self._k = patterns.shape[0]
-            self._patterns = patterns
+        assert isinstance(patterns, np.ndarray) and len(patterns.shape) == 2 and patterns.shape[1] == self._neurons, 'Invalid pattern input.'
+        self._k = patterns.shape[0]
+        self._patterns = patterns
+        self._examples = self.gen_examples(self._k)
 
     def add_patterns(self, k):
         assert isinstance(k, int) and k > 0, 'Number of patterns can only be increased.'
@@ -453,10 +462,10 @@ class TAM:
         self._patterns = np.concatenate((self._patterns, extra_patterns))
         self._examples = np.concatenate((self._examples, extra_examples), axis=1)
 
-        if self._k > 0:
-            self._J = self._J + self.interaction(extra_patterns, extra_examples, self._lmb)
+        if self._J is not None:
+            self._J = self._J + self.interaction(extra_patterns, extra_examples)
         else:
-            self._J = self.interaction(extra_patterns, extra_examples, self._lmb)
+            self._J = self.interaction(self._patterns, self._examples)
         self._k += k
 
     # the initial state setter will allow us to choose initial states by their names
@@ -467,15 +476,18 @@ class TAM:
             return name(**kwargs)
 
     # constructor of the interaction matrix (also used when patterns are added)
-    # for cases where all layers are the same (ie rho = 0 or not-split), this is a neurons * neurons matrix
+    # for cases where all layers are the same (ie rho = 0 or not-split), and lambda is not given, this is a neurons * neurons matrix
+    # this way, one can save memory and reuse the same system for different lambda's
     # otherwise it has dimensions layers * layers * neurons * neurons with lambda = -1
-    # simulate already takes this into consideration, this is why the insert_g method below exists
-    # this allows us to use the same class object for different values of lambda in experiments
-    def interaction(self, patterns, examples, lmb):
+    # simulate allows for a matrix J input because of this
+    # and the method insert_g allows us to insert the lambda dependence latter
+
+    # the reason this method and set_interaction are not the same method is for this one to be used for the extra patterns in add_patterns
+    def interaction(self, patterns, examples):
         big_r = self._r ** 2 + (1 - self._r ** 2) / self._m
         applied_examples = examples * patterns
         k = np.shape(patterns)[0]
-        if lmb >= 0 or self._split: # in these cases the interaction matrix already has full dimensions
+        if self._lmb >= 0 or self._split: # in these cases the interaction matrix already has full dimensions
             if self._split:
                 assert self._m % self._layers == 0, 'Number of examples not divisible by layers.'
                 applied_examples = np.reshape(applied_examples, (self._layers, self._m // self._layers, k, self._neurons))
@@ -483,9 +495,9 @@ class TAM:
                 applied_examples = np.broadcast_to(applied_examples, (self._layers, self._m, k, self._neurons))
             if self._supervised:
                 av_examples = np.mean(applied_examples, axis=1)
-                J = (1 / (big_r * self.neurons)) * np.einsum('kl, kui, luj -> klij', self.g(lmb), av_examples, av_examples)
+                J = (1 / (big_r * self.neurons)) * np.einsum('kl, kui, luj -> klij', self.g(self._lmb), av_examples, av_examples)
             else:
-                J = (1 / (big_r * self.neurons * self._m)) * np.einsum('kl, kaui, lauj -> klij', self.g(lmb), applied_examples,
+                J = (1 / (big_r * self.neurons * self._m)) * np.einsum('kl, kaui, lauj -> klij', self.g(self._lmb), applied_examples,
                                                            applied_examples)
             for i in range(self.neurons):
                 for l in range(self.layers):
@@ -497,6 +509,16 @@ class TAM:
             else:
                 J = (1 / (big_r * self.neurons * self._m)) * np.einsum('aui, auj -> ij', applied_examples, applied_examples)
         return J
+
+    def set_interaction(self, lmb = None, split = None, supervised = None):
+        if lmb is not None:
+            self._lmb = lmb
+        if split is not None:
+            self._split = split
+        if supervised is not None:
+            self._supervised = supervised
+        self._J = self.interaction(self._patterns, self._examples)
+
 
     def gen_patterns(self, k):
         return self.noise_patterns.choice([-1, 1], (k, self._neurons))
@@ -519,14 +541,14 @@ class TAM:
     def g(self, lmb):
         return g(layers = self._layers, lmb = lmb)
 
-    def insert_g(self, J, lmb):
-        if len(np.shape(J)) == 2:
-            J = np.broadcast_to(J, (self.layers, self.layers, self.neurons, self.neurons))*self.g(lmb)[:,:,None,None]
+    def insert_g(self, lmb):
+        if len(np.shape(self._J)) == 2:
+            J = np.broadcast_to(self._J, (self.layers, self.layers, self.neurons, self.neurons))*self.g(lmb)[:,:,None,None]
             for i in range(self.neurons):
                 for l in range(self.layers):
                     J[l, l, i, i] = 0
         else:
-            J = J*self.g(lmb)[:, :, None, None]
+            J = self._J*self.g(lmb)[:, :, None, None]
         return J
 
     # Method mattis returns an L x L array of the magnetizations with respect to the first L patterns
@@ -536,6 +558,8 @@ class TAM:
         return (1 / self._neurons) * np.einsum('li, ui -> lu', sigma, self._patterns[:cap])
 
     def ex_mags(self, sigma, cap = None):
+        if cap is None:
+            cap = self._layers
         if self._supervised:
             big_r = self._r ** 2 + (1 - self._r ** 2) / self._m
             return (self._r / (self._neurons * big_r * self._m)) * np.einsum('li, aui -> lu', sigma, self._examples[:,:cap])
@@ -560,18 +584,18 @@ class TAM:
     # av = True takes the average of the last av_counter iterations before returning, otherwise it returns the full history
 
     # It returns the full history of magnetizations
-    def simulate(self, beta, max_it, dynamic, error, av_counter, h_norm, lmb = None, av = True):
+    def simulate(self, beta, max_it, dynamic, error, av_counter, h_norm, sim_J = None, av = True, sim_rng = None):
         if av_counter == 1 and error > 0:
             print('Warning: av_counter set to 1 with positive error')
 
-        sim_rng = np.random.default_rng(self.fast_noise)
+        if sim_rng is None:
+            dyn_rng = np.random.default_rng(self.fast_noise.spawn(1)[0])
+        else:
+            dyn_rng = np.random.default_rng(sim_rng)
 
-        if lmb is None or lmb == self._lmb:
+        if sim_J is None:
             assert self._lmb >= 0, r'\lambda not available to simulate.'
             sim_J = self._J
-        else:
-            assert self._lmb < 0, r'Too  many \lambda\'s to simulate.'
-            sim_J = self.insert_g(self._J, lmb)
 
         state = self.initial_state
 
@@ -581,7 +605,7 @@ class TAM:
         idx = 0
         while idx < max_it: # do the simulation
             idx += 1
-            state = dynamics(beta = beta, J = sim_J, h = h_norm * self.external_field, sigma = state, dynamic = dynamic, dyn_rng = sim_rng)
+            state = dynamics(beta = beta, J = sim_J, h = h_norm * self.external_field, sigma = state, dynamic = dynamic, dyn_rng = dyn_rng)
             mags.append(self.mattis(state))
             ex_mags.append(self.ex_mags(state))
             if idx + 1 >= av_counter: # size of the actual arrays has +1 since they include initial states

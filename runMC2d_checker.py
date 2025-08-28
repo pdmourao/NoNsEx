@@ -3,6 +3,7 @@ from time import time
 from storage import npz_file_finder
 import json
 from MCclasses import HopfieldMC as hop
+from MCfuncsCopy import disentanglement, disentanglement_2d
 import sys
 
 t0 = time()
@@ -45,6 +46,11 @@ sys_kwargs = {'neurons': 3000,
               'noise_dif': False
               }
 
+new_dict = {**array_dict, 'h_norm': 0, 'neurons': 3000, 'k': 3, 'm': 50, 'split': False, 'supervised': True, 'av_counter': 3, 'dynamic': 'parallel'}
+new_dict.pop('H')
+
+r_values = np.sqrt(1 / (x_values * sys_kwargs['M'] + 1))
+
 dynamic = 'parallel'
 save_n = True
 av_counter = 3
@@ -73,7 +79,7 @@ try:
     entropy = (entropy_from_os, idx_s)
     mattis_from_file = np.load(file_npy)[idx_x*len_y + idx_y]
     ints_from_file = np.load(file_npy_ints)[idx_x * len_y + idx_y]
-except IndexError or FileNotFoundError:
+except (IndexError,FileNotFoundError) as e:
     print('No file saved for these inputs')
     entropy = np.random.SeedSequence().entropy
     mattis_from_file = np.zeros((3, 3))
@@ -98,39 +104,31 @@ print(f'Initialized system 1 in {round(time() - t, 3)} s.')
 t = time()
 alt_sys_kwargs = dict(sys_kwargs)
 # To use for new inputs
-system2 = hop(rho = x_values[idx_x], lmb = y_values[idx_y], rngSS = rng_seeds2[idx_x * len_y + idx_y], **alt_sys_kwargs)
-print(f'Initialized system 2 in {round(time() - t, 3)} s.')
+mattis, ex_mags, its = disentanglement(r = r_values[idx_x], lmb = y_values[idx_y], rng_ss = rng_seeds2[idx_x * len_y + idx_y], checker = system1.J, **new_dict)
 
-print(f'J matrices check: {np.array_equal(system1.J, system2.J)}')
-print(system2.J.dtype)
-print(system2.J.nbytes)
 
 print('System 1 running...')
-output1 = system1.simulate(dynamic = dynamic, sim_rngSS = rng_seeds1[idx_x * len_y + idx_y].spawn(1)[0], av_counter = av_counter,
-                            prints = False, cut = False, **array_dict)[0]
-if not np.array_equal(np.mean(output1[-av_counter:], axis=0), mattis_from_file):
-    sys.exit('Sanity check failed.')
+mattis1, ex_mags1, its1 = system1.simulate(dynamic = dynamic, sim_rngSS = rng_seeds1[idx_x * len_y + idx_y].spawn(1)[0], av_counter = av_counter,
+                            av = True, **array_dict)[0]
+if not np.array_equal(mattis1, mattis_from_file):
+    print('1st sanity check failed.')
 else:
-    print('Sanity check cleared.')
+    print('1st Sanity check cleared.')
 
-compare_simulations = True
+if not np.array_equal(mattis1, mattis):
+    print('2nd sanity check failed.')
+else:
+    print('2nd Sanity check cleared.')
 
-if compare_simulations:
+if not np.array_equal(ex_mags, ex_mags1):
+    print('3rd sanity check failed.')
+else:
+    print('3rd Sanity check cleared.')
 
-    alt_array_dict = dict(array_dict)
-    alt_array_dict['error'] = 0
-    alt_array_dict['max_it'] = 50
+if not np.array_equal(its, its1):
+    print('4th sanity check failed.')
+else:
+    print('4th Sanity check cleared.')
 
-    time0 = time()
-    print('\n System 2 running...')
-    output2 = system2.simulate(dynamic = dynamic, sim_rngSS = rng_seeds2[idx_x * len_y + idx_y].spawn(1)[0], disable = True, prints = True,
-                               av_counter = av_counter, cut = False, **alt_array_dict)[0]
-
-    print(np.mean(output2[-av_counter:], axis=0))
-    print(mattis_from_file)
-
-    time2 = time()-time0
-    # print(f'\nCheck 1: {np.array_equal(np.mean(output1[-av_counter:], axis = 0), mattis_from_file)}')
-    print(f'Check 2: {np.array_equal(np.mean(output2[-av_counter:], axis = 0), mattis_from_file)}\n')
 
 

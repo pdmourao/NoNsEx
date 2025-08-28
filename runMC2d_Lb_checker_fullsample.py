@@ -1,5 +1,7 @@
 import numpy as np
 from time import time
+
+from MCfuncsCopy import disentanglement_lmb_beta
 from storage import npz_file_finder
 import json
 from MCclasses import HopfieldMC as hop, TAM as tam
@@ -16,18 +18,11 @@ t0 = time()
 # The pixels are the values of beta and l given in the arrays below l_values and beta_values
 
 idx_s = 3
-x = 0.2
-y = 1
 
 
 l_values = np.linspace(start = 0, stop = 0.5, num = 50, endpoint = False)
 y_values = np.linspace(start = 25, stop = 1, num = 50, endpoint = False)[::-1]
 # y_values = np.linspace(start = 0, stop = 0.2, num = 50)
-
-idx_l = (np.abs(l_values - x)).argmin()
-idx_y = (np.abs(y_values - y)).argmin()
-
-print(f'Values: lmb = {l_values[idx_l]}, beta = {y_values[idx_y]}')
 
 array_dict = {'beta': y_values,
               'H': 0,
@@ -66,7 +61,6 @@ for item, value in array_dict.items():
 npz_files = npz_file_finder(directory = directory, prints = False, dynamic = dynamic, lmb = l_values,
                             av_counter = av_counter, save_n = save_n, **array_dict, **sys_kwargs)
 
-
 if len(npz_files) > 1:
     print('Warning: more than 1 experiments found for given inputs.')
 
@@ -78,55 +72,28 @@ try:
         data = json.load(json_file)
         entropy_from_os = int(data['entropy'])
     entropy = (entropy_from_os, idx_s)
-    mattis_from_file = np.load(file_npy)[idx_l*len_y + idx_y]
-except (IndexError, FileNotFoundError) as e:
+    mattis_from_file = np.load(file_npy).reshape((len_y, len_l, 3, 3))
+except (IndexError, FileNotFoundError, ValueError) as e:
     print('No file saved for these inputs')
     entropy = np.random.SeedSequence().entropy
     mattis_from_file = np.zeros((3, 3))
 
-print('Saved values:')
-print(mattis_from_file)
-
-system1 = hop(lmb = l_values[idx_l], rngSS = np.random.SeedSequence(entropy), **sys_kwargs)
 
 t = time()
 # To use to compare
 r = np.sqrt(1 / (sys_kwargs['rho'] * sys_kwargs['M'] + 1))
-system = tam(neurons=sys_kwargs['neurons'], lmb = l_values[idx_l], layers=3, r=r, m=sys_kwargs['M'], split = sys_kwargs['noise_dif'], supervised = True)
 
-system.noise_patterns = np.random.default_rng(np.random.SeedSequence(entropy))
-system.noise_examples = system.noise_patterns
-
-system.add_patterns(sys_kwargs['K'])
-system.initial_state = system.mix()
-system.external_field = system.mix(0)
-
-print(f'Initialized systems in {round(time() - t, 3)} s.')
-
-# print(f'J matrices check: {np.array_equal(system1.J, system2.J)}')
-
-# print(system1.ex_mags(system1.sigma))
-# print(system2.ex_mags(system2.sigma))
-
-rng_seeds = np.random.SeedSequence(entropy=entropy).spawn(len_l * len_y)
-# rng_seeds2 = np.random.SeedSequence(entropy=entropy).spawn(len_l * len_y)
-print(f'Generated seeds for simulate in {round(time() - t0, 3)} s.')
 
 # system = tam(neurons=neurons, layers=3, r=r, m=m, split = sys_kwargs['noise_dif'], supervised = supervised)
 
 compare_simulations = True
 
 if compare_simulations:
-    print('System 1 running...')
-    array_dict['beta'] = y_values[idx_y]
-    t1 = time()
-    mattis1 = system1.simulate(dynamic=dynamic, sim_rngSS=rng_seeds[idx_l * len_y + idx_y], av_counter=av_counter,
-                               prints=False, av = True, **array_dict)[0]
-    print(f'System 1 ran in {round(time() - t1, 3)} s.')
+    time0 = time()
     print('System running...')
-    t0 = time()
-    mattis, ex_mags, max_its = system.simulate(beta = y_values[idx_y], max_it = array_dict['max_it'], dynamic = dynamic, error = array_dict['error'], av_counter = av_counter, h_norm = array_dict['H'], av = True, sim_rng=rng_seeds[idx_l * len_y + idx_y])
-    print(f'System 0 ran in {round(time() - t0, 3)} s.')
+    mattis, ex_mags, max_its = disentanglement_lmb_beta(neurons = sys_kwargs['neurons'], k = sys_kwargs['K'], r = r, m = sys_kwargs['M'], supervised = True, split = sys_kwargs['noise_dif'], beta = y_values, max_it = array_dict['max_it'], dynamic = dynamic,
+                                                        error = array_dict['error'], av_counter = av_counter, h_norm = array_dict['H'], lmb = l_values, entropy = entropy, checker = mattis_from_file)
+    time1 = time()-time0
     if not np.array_equal(mattis, mattis_from_file):
         print('Sanity check failed.')
     else:

@@ -289,178 +289,55 @@ def splitting_beta(entropy, beta_values, neurons, K, rho, lmb, M, max_it, error,
     return tuple(output_list)
 
 
-def disentanglement(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
-                   dynamic, L=3, h=None, rngSS=np.random.SeedSequence(), prints=False, cut=False):
-    t = time()
-    system = hop(neurons=neurons, L=L, K=K, rho=rho, M=M, mixM=mixM, lmb=lmb, sigma_type=sigma_type, quality=quality,
-                 noise_dif=noise_dif, h=h, rngSS=rngSS)
-    t = time() - t
-    if prints:
-        print(f'System generated in {round(t, 2)} secs.')
-
-    sim_rngSS = rngSS.spawn(1)[0]
-
-    return system.simulate(beta=beta, H=H, max_it=max_it, error=error, av_counter=av_counter,
-                           dynamic=dynamic, cut=cut, disable=True, sim_rngSS=sim_rngSS)
+def disentanglement(neurons, k, r, m, lmb, split, supervised, beta, h_norm, max_it, error, av_counter, dynamic, checker = None, layers = 3, rng_ss = None, av = True):
 
 
-def MC2d(directory, save_n, save_int, n_samples, y_values, y_arg, x_values, x_arg, dynamic, noise_dif, sigma_type,
-         silent=False, disable=False, **kwargs):
+    system = tam(neurons=neurons, layers = layers, r=r, m=m, lmb=lmb, split = split, supervised = supervised, rng_ss = rng_ss)
 
-    if silent:
-        disable = True
-    directory = directory
+
+    system.noise_patterns = np.random.default_rng(rng_ss)
+    system.noise_examples = system.noise_patterns
+
+    system.add_patterns(k)
+    system.initial_state = system.mix()
+    system.external_field = system.mix(0)
+
+    print(np.array_equal(system.J, checker))
+
+    return system.simulate(beta=beta, h_norm = h_norm, max_it=max_it, error=error, av_counter=av_counter, dynamic=dynamic, av = av)
+
+
+def disentanglement_2d(y_values, y_arg, x_values, x_arg, entropy = None, disable=False, **kwargs):
+
     len_y = len(y_values)
     len_x = len(x_values)
 
-    json_dict = {'dynamic': dynamic,
-                 'noise_dif': noise_dif,
-                 'sigma_type': sigma_type,
-                 'save_n': save_n,
-                 'save_int': save_int}
+    mattis = np.zeros((len_x, len_y, 3, 3))
+    mattis_ex = np.zeros((len_x, len_y, 3, 3))
+    max_its = np.zeros((len_x, len_y), dtype=int)
 
-    inputs_num = {**kwargs, x_arg: x_values, y_arg: y_values}
+    t0 = time()
 
-    inputs = {**json_dict, **kwargs, x_arg: x_values, y_arg: y_values}
+    rng_seeds = np.random.SeedSequence(entropy).spawn(len_x * len_y)
 
-    npz_files = npz_file_finder(directory=directory, prints=False, **inputs)
-    if len(npz_files) > 1:
-        print('Warning: more than 1 experiments found for given inputs.')
+    with tqdm(total=len_x * len_y, disable=disable) as pbar:
+        for idx_x, x_v in enumerate(x_values):
+            kwargs[x_arg] = x_v
+            for idx_y, y_v in enumerate(y_values):
+                kwargs[y_arg] = y_v
+                mattis[idx_x, idx_y], mattis_ex[idx_x, idx_y], max_its[idx_x, idx_y] = disentanglement(
+                    rng_ss=rng_seeds[idx_x * len_y + idx_y], **kwargs)
+                if not disable:
+                    pbar.update(1)
 
-    try:
-        file_npz = npz_files[0]
-        with open(file_npz[:-3] + 'json', mode="r", encoding="utf-8") as json_file:
-            data = json.load(json_file)
-            entropy_from_os = int(data['entropy'])
-        if not silent:
-            print('File found!')
-            print(file_npz)
-            if n_samples > 0:
-                print('Restarting...')
-        samples_present = len([file for file in os.listdir(directory) if
-                               file_npz[:-4] in os.path.join(directory, file) and file[-5:] == 'm.npy'])
-        if not silent:
-            print(f'There are {samples_present} sample(s) present')
-        if n_samples == 0:
-            if samples_present > 0:
-                last_sample = np.load(file_npz[:-4] + f'_sample{samples_present - 1}_m.npy')
-                if len(last_sample) < len_x * len_y:
-                    samples_present -= 1
-            if samples_present > 0:
-                n_samples = samples_present
-            else:
-                raise Exception('No samples present. Compute some first.')
+    print(f'System ran in {round((time()-t0 )/ 60)} minutes.')
 
-    except IndexError:
-        if n_samples == 0:
-            raise Exception('No complete samples present. Compute some first.')
-        print('No experiments found for given inputs. Starting one.')
-        file_npz = os.path.join(directory, f'MC2dF_{x_arg}{y_arg}{len_x * len_y}_{int(time())}.npz')
-        entropy_from_os = np.random.SeedSequence().entropy
-        with open(f'{file_npz[:-3]}json', mode="w", encoding="utf-8") as json_file:
-            json_dict['entropy'] = str(entropy_from_os)
-            json.dump(json_dict, json_file)
-        np.savez(file_npz, **inputs_num)
-
-    mattis = np.zeros((n_samples, len_x, len_y, 3, 3))
-    mattis_ex = np.zeros((n_samples, len_x, len_y, 3, 3))
-    max_ints = np.zeros((n_samples, len_x, len_y), dtype=int)
-
-    inputs.pop('save_n')
-    inputs.pop('save_int')
-
-    for idx_s in range(n_samples):
-
-        t0 = time()
-
-        entropy = (entropy_from_os, idx_s)
-
-        rng_seeds = np.random.SeedSequence(entropy).spawn(len_x * len_y)
-        print(f'Generated seeds for simulate in {round(time() - t0, 3)} s.')
-
-        t = time()
-        if not silent:
-            print(f'\nSolving system {idx_s + 1}/{n_samples}...')
-
-        file_npy_m = file_npz[:-4] + f'_sample{idx_s}_m.npy'
-        file_npy_n = file_npz[:-4] + f'_sample{idx_s}_n.npy'
-        file_npy_ints = file_npz[:-4] + f'_sample{idx_s}_ints.npy'
-
-        try:
-            mattis_flat = np.load(file_npy_m)
-            if save_n:
-                mattis_flat_ex = np.load(file_npy_n)
-                assert len(mattis_flat_ex) == len(mattis_flat), 'Sample files corrupted. Fix or delete.'
-            else:
-                mattis_flat_ex = []
-            if save_int:
-                flat_ints = np.load(file_npy_ints)
-                assert len(flat_ints) == len(mattis_flat), 'Sample files corrupted. Fix or delete.'
-            else:
-                flat_ints = []
-
-        except FileNotFoundError:
-            mattis_flat = []
-            mattis_flat_ex = []
-            flat_ints = []
-
-        if len(mattis_flat) < len_x * len_y:
-            if len(mattis_flat) == 0:
-                print('Sample not present.')
-            else:
-                print(f'Sample incomplete ({len(mattis_flat)}/{len_x * len_y})')
-
-        with tqdm(total=len_x * len_y, disable=disable) as pbar:
-            for idx_x, x_v in enumerate(x_values):
-                inputs[x_arg] = x_v
-                for idx_y, y_v in enumerate(y_values):
-
-                    try:
-                        mattis[idx_s, idx_x, idx_y] = mattis_flat[idx_x * len_y + idx_y]
-                        if save_n:
-                            mattis_ex[idx_s, idx_x, idx_y] = mattis_flat_ex[idx_x * len_y + idx_y]
-                        if save_int:
-                            max_ints[idx_s, idx_x, idx_y] = flat_ints[idx_x * len_y + idx_y]
-                    except IndexError:
-                        inputs[y_arg] = y_v
-
-                        output_m, output_n, ints = MCHop_InAndOut(cut=True, rngSS=rng_seeds[idx_x * len_y + idx_y],
-                                                            **inputs)
-
-                        output_m_mean = np.mean(output_m, axis=0)
-                        output_n_mean = np.mean(output_n, axis=0)
-
-                        mattis[idx_s, idx_x, idx_y] = output_m_mean
-                        mattis_ex[idx_s, idx_x, idx_y] = output_n_mean
-                        max_ints[idx_s, idx_x, idx_y] = ints
-
-                        with NpyAppendArray(file_npy_m) as npyf:
-                            npyf.append(output_m_mean.reshape((1, 3, 3)))
-
-                        if save_n:
-                            with NpyAppendArray(file_npy_n) as npyf:
-                                npyf.append(output_n_mean.reshape((1, 3, 3)))
-                        if save_int:
-                            with NpyAppendArray(file_npy_ints) as npyf:
-                                npyf.append(np.array([ints]))
-
-                    if disable and not silent:
-                        print(f'{x_arg} = {round(x_v, 2)}, {y_arg} = {round(y_v, 2)} ran to {max_ints[idx_s, idx_x, idx_y]} iteration(s).')
-                    # print(f'MaxSD = {np.max(np.std(output, axis=0))}')
-                    # print(f'MaxDif = {np.max(np.sum(np.diff(output, axis=0), axis=0))}')
-                    else:
-                        pbar.update(1)
-
-        t = time() - t
-        if not silent:
-            print(f'System ran in {round(t / 60)} minutes.')
-
-    return mattis, mattis_ex, max_ints
+    return mattis, mattis_ex, max_its
 
 
 # Disentanglement experiments in terms of lambda and beta
 def disentanglement_lmb_beta(neurons, k, r, m, lmb, beta, dynamic, split, supervised, max_it, error, av_counter, h_norm,
-                             entropy = None, disable=False):
+                             entropy = None, disable=False, checker = None):
 
     # Get length of input arrays
     len_lmb = len(lmb)
@@ -475,23 +352,24 @@ def disentanglement_lmb_beta(neurons, k, r, m, lmb, beta, dynamic, split, superv
 
     t = time()
 
-    system = tam(neurons=neurons, layers=3, r=r, m=m, split = split, supervised = supervised)
-    system.noise_patterns = np.random.SeedSequence(entropy)
+    system = tam(neurons=neurons, layers=3, r=r, m=m, split = split, supervised = supervised, rng_ss = np.random.SeedSequence(entropy=entropy))
+    system.noise_patterns = np.random.default_rng(system.fast_noise)
     system.noise_examples = system.noise_patterns
 
-    rng_spawns = system.noise_patterns.spawn(len_lmb * len_beta)
-
     system.add_patterns(k)
+    system.initial_state = system.mix()
+    system.external_field = system.mix(0)
 
 
 
     with tqdm(total=len_lmb * len_beta, disable=disable) as pbar:
         for idx_lmb, lmb_v in enumerate(lmb):
+            matrix_J = system.insert_g(lmb_v)
             for idx_beta, beta_v in enumerate(beta):
 
-                system.fast_noise = np.random.default_rng(rng_spawns[idx_lmb * len_beta + idx_beta])
-                mattis[idx_lmb, idx_beta], mattis_ex[idx_lmb, idx_beta], max_its[idx_lmb, idx_beta] = system.simulate(beta = beta, max_it = max_it, dynamic = dynamic, error = error, av_counter = av_counter, h_norm = h_norm, lmb = lmb_v)
-
+                mattis[idx_lmb, idx_beta], mattis_ex[idx_lmb, idx_beta], max_its[idx_lmb, idx_beta] = system.simulate(beta = beta_v, max_it = max_it, dynamic = dynamic, error = error, av_counter = av_counter, h_norm = h_norm, sim_J = matrix_J)
+                if checker is not None:
+                    assert np.array_equal(mattis[idx_lmb, idx_beta], checker[idx_lmb, idx_beta]), "Check not cleared"
                 if disable:
                     print(f'lmb = {round(lmb_v, 2)}, beta = {round(beta_v, 2)} done.')
                 # print(f'MaxSD = {np.max(np.std(output, axis=0))}')
