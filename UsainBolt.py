@@ -29,6 +29,14 @@ class Experiment:
     def dir(self):
         return self._directory
 
+    @property
+    def file_prefix(self):
+        return self._file_prefix
+
+    @property
+    def entropy(self):
+        return self._entropy
+
     # sets the directory and checks if there's an existing experiment with matching inputs
     # if kept at None, experiments can still be ran but they wont be saved to files nor can files be read
     @dir.setter

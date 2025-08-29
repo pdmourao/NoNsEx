@@ -3,7 +3,7 @@ from time import time
 from storage import npz_file_finder, mathToPython
 from scipy.interpolate import make_interp_spline
 import json
-from MCclasses import HopfieldMC as hop
+from MCclasses import HopfieldMC as hop, TAM as tam
 from MCfuncsCopy import splitting_optimal
 
 t0 = time()
@@ -67,8 +67,8 @@ print(f'Not split system inputs: rho = {rho_notsplit}, beta = {beta_notsplit}, l
 sys_kwargs_notsplit = dict(sys_kwargs_split)
 sys_kwargs_notsplit['M'] = 3 * sys_kwargs_split['M']
 
-m = 3 * sys_kwargs_split['M']
-r_values = np.sqrt(1 / (rho_values * m + 1))
+m = 3*sys_kwargs_split['M']
+r_values = np.sqrt(1 / (rho_values/3 * m + 1))
 
 lmb_values = np.array([lmb_line_ns, lmb_line_s])
 beta_values = np.array([beta_line_ns, beta_line_s])
@@ -131,5 +131,7 @@ if checker:
               its_fromfile[0, idx_rho]==ints_checker_notsplit]
     print(f'Checks: {all(checks)}')
 
+
 checker0 = (m_fromfile, n_fromfile, its_fromfile)
-mattis, mattis_ex, max_its = splitting_optimal(entropy = entropy, layers = 3, lmb_values = lmb_values, beta_values = beta_values, r_values = r_values, checker = checker0, checkerJ = notsplit.J, checkerpats = notsplit.pat, checkerrand = checkerrand, disable = True, **kwargs_copy)
+
+mattis, mattis_ex, max_its = splitting_optimal(entropy = entropy, layers = 3, lmb_values = lmb_values, beta_values = beta_values, r_values = r_values, checker = checker0, checkerex = split.ex_av, disable = True, **kwargs_copy)

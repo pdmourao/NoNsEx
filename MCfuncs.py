@@ -287,6 +287,8 @@ def splitting_beta(entropy, beta_values, neurons, K, rho, lmb, M, max_it, error,
     return tuple(output_list)
 
 
+
+
 def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,
                    dynamic, L=3, h=None, rngSS=np.random.SeedSequence(), prints=False, cut=False):
     t = time()

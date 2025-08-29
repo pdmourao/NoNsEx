@@ -379,8 +379,6 @@ class TAM:
 
         # we set k at 0 first because the pattern setter can only be called for k = 0
         self._k = 0
-        self._patterns = self.gen_patterns(0)
-        self._examples = self.gen_examples(self._patterns)
 
         # initializes the patterns (see patterns setter)
         # it is used when we want to give specific patterns and not randomly generate them
@@ -389,13 +387,25 @@ class TAM:
         # examples for each pattern are randomly generated (see patterns setter)
         if patterns is not None:
             self.patterns = patterns
+        else:
+            self._k = 0
+            self._patterns = self.gen_patterns(0)
+
+        # available examples
+        self._examples = self.gen_examples(self._patterns)
 
         # variables for the computation of the interaction matrix
         self._lmb = lmb
         self._split = split
         self._supervised = supervised
 
+        # interaction matrix and effective examples
+        # effective examples are the examples above but split among layers (if split) and average among examples (if supervised)
+        # gets defined when interaction matrix does (see set_interaction)
         self._J = None
+        self._effective_examples = None
+
+
         # next we add random patterns and examples
         # can only be higher than existing patterns
         if k > self._k:
@@ -441,8 +451,21 @@ class TAM:
         return self._patterns
 
     @property
+    def examples(self):
+        return self._examples
+
+    @property
     def k(self):
         return self._k
+
+    @property
+    def m_per_layer(self):
+        if self._split:
+            if self._m % self._layers != 0:
+                print('Warning: non-integer m per layer.')
+            return self.m // self._layers
+        else:
+            return self._m
 
 
     @patterns.setter
@@ -462,8 +485,9 @@ class TAM:
 
         if self._J is not None:
             self._J = self._J + self.interaction(extra_examples)
+            self._effective_examples = self.effective_examples()
         else:
-            self._J = self.interaction(self._examples)
+            self.set_interaction()
         self._k += k
 
     # the initial state setter will allow us to choose initial states by their names
@@ -481,21 +505,17 @@ class TAM:
     # and the method insert_g allows us to insert the lambda dependence latter
 
     # the reason this method and set_interaction are not the same method is for this one to be used for the extra patterns in add_patterns
-    def interaction(self, examples):
-        big_r = self._r ** 2 + (1 - self._r ** 2) / self._m
-        k = np.shape(examples)[1]
+    def interaction(self, examples = None):
+        if examples is None:
+            examples = self._examples
+        big_r = self._r ** 2 + (1 - self._r ** 2) / self.m_per_layer
         if self._lmb >= 0 or self._split: # in these cases the interaction matrix already has full dimensions
-            if self._split:
-                assert self._m % self._layers == 0, 'Number of examples not divisible by layers.'
-                applied_examples = np.reshape(examples, (self._layers, self._m // self._layers, k, self._neurons))
-            else:
-                applied_examples = np.broadcast_to(examples, (self._layers, self._m, k, self._neurons))
+            eff_examples = self.effective_examples(examples)
             if self._supervised:
-                av_examples = np.mean(applied_examples, axis=1)
-                J = (1 / (big_r * self.neurons)) * np.einsum('kl, kui, luj -> klij', self.g(self._lmb), av_examples, av_examples)
+                J = (1 / (big_r * self.neurons)) * np.einsum('kl, kui, luj -> klij', self.g(self._lmb), eff_examples, eff_examples)
             else:
-                J = (1 / (big_r * self.neurons * self._m)) * np.einsum('kl, kaui, lauj -> klij', self.g(self._lmb), applied_examples,
-                                                           applied_examples)
+                J = (1 / (big_r * self.neurons * self.m_per_layer)) * np.einsum('kl, kaui, lauj -> klij', self.g(self._lmb), eff_examples,
+                                                           eff_examples)
             for i in range(self.neurons):
                 for l in range(self.layers):
                     J[l, l, i, i] = 0
@@ -507,6 +527,19 @@ class TAM:
                 J = (1 / (big_r * self.neurons * self._m)) * np.einsum('aui, auj -> ij', examples, examples)
         return J
 
+    def effective_examples(self, examples = None):
+        if examples is None:
+            examples = self._examples
+        k = np.shape(examples)[1]
+        if self._split:
+            applied_examples = np.reshape(examples, (self._layers, self.m_per_layer, k, self._neurons))
+        else:
+            applied_examples = np.broadcast_to(examples, (self._layers, self._m, k, self._neurons))
+        if self._supervised:
+            applied_examples = np.mean(applied_examples, axis=1)
+        return applied_examples
+
+
     def set_interaction(self, lmb = None, split = None, supervised = None):
         if lmb is not None:
             self._lmb = lmb
@@ -514,7 +547,8 @@ class TAM:
             self._split = split
         if supervised is not None:
             self._supervised = supervised
-        self._J = self.interaction(self._examples)
+        self._J = self.interaction()
+        self._effective_examples = self.effective_examples()
 
 
     def gen_patterns(self, k):
@@ -550,6 +584,7 @@ class TAM:
             J = self._J*self.g(lmb)[:, :, None, None]
         return J
 
+
     # Method mattis returns an L x L array of the magnetizations with respect to the first L patterns
     def mattis(self, sigma, cap = None):
         if cap is None:
@@ -560,13 +595,11 @@ class TAM:
         if cap is None:
             cap = self._layers
         if self._supervised:
-            big_r = self._r ** 2 + (1 - self._r ** 2) / self._m
-            av_examples = np.mean(self._examples*self._patterns, axis = 0)
-            return (self._r / (self._neurons * big_r)) * np.einsum('li, ui -> lu', sigma, av_examples[:cap])
+            big_r = self._r ** 2 + (1 - self._r ** 2) / self.m_per_layer
+            return (self._r / (self._neurons * big_r)) * np.einsum('li, lui -> lu', sigma, self._effective_examples[:,:cap])
         else:
-            examples = self._examples*self._patterns
             # is there a constant here?
-            return (1 / self._neurons) * np.einsum('li, aui -> alu', sigma, examples[:,:cap])
+            return (1 / self._neurons) * np.einsum('li, alui -> alu', sigma, self._effective_examples[:,:,cap])
 
     # Method simulate runs the MonteCarlo simulation
     # It does L x neurons flips per iteration.
@@ -587,6 +620,9 @@ class TAM:
 
     # It returns the full history of magnetizations
     def simulate(self, beta, max_it, dynamic, error, av_counter, h_norm, sim_J = None, av = True, sim_rng = None):
+        assert self.initial_state is not None, 'Initial state not provided.'
+        assert self.external_field is not None, 'External field not provided.'
+
         if av_counter == 1 and error > 0:
             print('Warning: av_counter set to 1 with positive error')
 

@@ -30,7 +30,7 @@ from MCclasses import TAM as tam
 # pbar is for the progress bar
 
 
-def splitting_optimal(entropy, neurons, layers, k, m, r_values, beta_values, lmb_values, max_it, error, av_counter, h_norm, dynamic, checkerJ = None, checker = None, checkerpats = None, checkerrand = None, disable = False):
+def splitting_optimal(entropy, neurons, layers, k, m, r_values, beta_values, lmb_values, max_it, error, av_counter, h_norm, dynamic, checkerex = None, checker = None, checkerpats = None, checkerrand = None, disable = False):
 
     t = process_time()
     len_r = len(r_values)
@@ -42,53 +42,37 @@ def splitting_optimal(entropy, neurons, layers, k, m, r_values, beta_values, lmb
 
     rng_seeds = np.random.SeedSequence(entropy).spawn(2*len_r)
 
-    assert np.array_equal(np.random.default_rng(rng_seeds[0]).random(10), checkerrand), 'Checkerrand did not pass'
-
     with tqdm(total=len_r, disable=disable) as pbar:
         for idx_r, r_v in enumerate(r_values):
 
-
-            noise_notsplit = rng_seeds[2 * idx_r]
-            noise_split = rng_seeds[2 * idx_r + 1]
-
-            system = tam(neurons = neurons, layers = layers, lmb = lmb_values[0, idx_r], r = r_v, m = m, supervised = True, rng_ss=noise_notsplit,
+            system = tam(neurons = neurons, layers = layers, lmb = lmb_values[0, idx_r], r = r_v, m = m, supervised = True,
                          split = False)
 
-            system.noise_patterns = np.random.default_rng(noise_notsplit)
+            system.noise_patterns = np.random.default_rng(rng_seeds[2 * idx_r])
             system.noise_examples = system.noise_patterns
-            system.fast_noise = noise_notsplit
+            system.fast_noise = rng_seeds[2 * idx_r + 1]
 
             system.add_patterns(k)
-            print(np.shape(system.patterns))
-            print(np.shape(checkerpats))
-            if np.array_equal(system.patterns, checkerpats):
-                print('Checkerpats passed')
-            else:
-                print('Checkerpats did not pass')
+
             system.initial_state = system.mix()
             system.external_field = system.mix(0)
 
             mattis[0,idx_r], mattis_ex[0,idx_r], max_its[0,idx_r] = system.simulate(beta=beta_values[0, idx_r], dynamic=dynamic, av_counter = av_counter, h_norm = h_norm, max_it = max_it, error = error)
 
-            if np.array_equal(np.transpose(system.J, [0, 2, 1, 3]), checkerJ):
-                print('CheckerJ passed')
-            else:
-                print('CheckerJ did not pass.')
-
             system.set_interaction(lmb = lmb_values[1, idx_r], split = True)
-            system.fast_noise = noise_split
+            system.fast_noise = rng_seeds[2 * idx_r]
 
             mattis[1,idx_r], mattis_ex[1,idx_r], max_its[1,idx_r] = system.simulate(beta=beta_values[1, idx_r], dynamic=dynamic, av_counter = av_counter, h_norm = h_norm, max_it = max_it, error = error)
 
-            if np.array_equal(mattis[:,idx_r], checker[0][idx_r]):
+            if np.array_equal(mattis[:,idx_r], checker[0][:,idx_r]):
                 print('Checkermattis passed')
             else:
                 print('Checkermattis did not pass.')
-            if np.array_equal(mattis_ex[:, idx_r], checker[1][idx_r]):
+            if np.allclose(mattis_ex[:, idx_r], checker[1][:,idx_r]):
                 print('Checkerex passed')
             else:
                 print('Checkerex did not pass.')
-            if np.array_equal(max_its[:, idx_r], checker[2][idx_r]):
+            if np.array_equal(max_its[:, idx_r], checker[2][:,idx_r]):
                 print('Checkerits passed')
             else:
                 print('Checkerits did not pass.')
@@ -102,7 +86,7 @@ def splitting_optimal(entropy, neurons, layers, k, m, r_values, beta_values, lmb
     return mattis, mattis_ex, max_its
 
 
-def splitting_beta(entropy, beta_values, neurons, k, layers, supervised, r, lmb, m, max_it, error, av_counter, h_norm, dynamic, disable = True):
+def splitting_beta(entropy, beta_values, neurons, k, layers, supervised, r, lmb, m, max_it, error, av_counter, h_norm, dynamic, checkers = None, disable = False):
 
     # this function runs the splitting experiment with only varying temperature
     # see the HopfieldMC class for more details
@@ -133,8 +117,17 @@ def splitting_beta(entropy, beta_values, neurons, k, layers, supervised, r, lmb,
     for beta_idx, beta in enumerate(tqdm(beta_values, disable = disable)):
 
         mattis[0, beta_idx], mattis_ex[0,beta_idx], max_its[0,beta_idx] = system.simulate(beta=beta, sim_rng=rng_seeds_notsplit[beta_idx], av_counter = av_counter, max_it = max_it, error = error, h_norm = h_norm, dynamic = dynamic)
+        print(np.shape(mattis[0, beta_idx]))
+        print(np.shape(checkers[0][0, beta_idx]))
+        assert np.array_equal(mattis[0, beta_idx], checkers[0][0, beta_idx]), 'Checkermattis 1 did not pass.'
+        assert np.array_equal(mattis_ex[0, beta_idx], checkers[1][0, beta_idx]), 'Checkerex 1 did not pass.'
+        assert np.array_equal(max_its[0, beta_idx], checkers[2][0, beta_idx]), 'Checkerits 1 did not pass.'
         system.set_interaction(split = True)
         mattis[1, beta_idx], mattis_ex[1,beta_idx], max_its[1,beta_idx] = system.simulate(beta=beta, sim_rng=rng_seeds_split[beta_idx], av_counter = av_counter, max_it = max_it, error = error, h_norm = h_norm, dynamic = dynamic)
+
+        assert np.array_equal(mattis[1,beta_idx], checkers[0][1,beta_idx]), 'Checkermattis 2 did not pass.'
+        assert np.array_equal(mattis_ex[1, beta_idx], checkers[1][1,beta_idx]), 'Checkerex 2 did not pass.'
+        assert np.array_equal(max_its[1, beta_idx], checkers[2][1,beta_idx]), 'Checkerits 2 did not pass.'
 
     if not disable:
         print(f'Sample ran in {round(process_time() - t / 60)} minutes.')
