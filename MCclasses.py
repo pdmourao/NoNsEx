@@ -380,9 +380,7 @@ class TAM:
         # we set k at 0 first because the pattern setter can only be called for k = 0
         self._k = 0
         self._patterns = self.gen_patterns(0)
-        self._examples = self.gen_examples(0)
-        # examples actually mean the Chi variables (the blur that gets applied to the archetypes)
-        # when dealing with actual examples, they are often called something like applied_examples
+        self._examples = self.gen_examples(self._patterns)
 
         # initializes the patterns (see patterns setter)
         # it is used when we want to give specific patterns and not randomly generate them
@@ -453,19 +451,19 @@ class TAM:
         assert isinstance(patterns, np.ndarray) and len(patterns.shape) == 2 and patterns.shape[1] == self._neurons, 'Invalid pattern input.'
         self._k = patterns.shape[0]
         self._patterns = patterns
-        self._examples = self.gen_examples(self._k)
+        self._examples = self.gen_examples(self._patterns)
 
     def add_patterns(self, k):
         assert isinstance(k, int) and k > 0, 'Number of patterns can only be increased.'
         extra_patterns = self.gen_patterns(k)
-        extra_examples = self.gen_examples(k)
+        extra_examples = self.gen_examples(extra_patterns)
         self._patterns = np.concatenate((self._patterns, extra_patterns))
         self._examples = np.concatenate((self._examples, extra_examples), axis=1)
 
         if self._J is not None:
-            self._J = self._J + self.interaction(extra_patterns, extra_examples)
+            self._J = self._J + self.interaction(extra_examples)
         else:
-            self._J = self.interaction(self._patterns, self._examples)
+            self._J = self.interaction(self._examples)
         self._k += k
 
     # the initial state setter will allow us to choose initial states by their names
@@ -483,16 +481,15 @@ class TAM:
     # and the method insert_g allows us to insert the lambda dependence latter
 
     # the reason this method and set_interaction are not the same method is for this one to be used for the extra patterns in add_patterns
-    def interaction(self, patterns, examples):
+    def interaction(self, examples):
         big_r = self._r ** 2 + (1 - self._r ** 2) / self._m
-        applied_examples = examples * patterns
-        k = np.shape(patterns)[0]
+        k = np.shape(examples)[1]
         if self._lmb >= 0 or self._split: # in these cases the interaction matrix already has full dimensions
             if self._split:
                 assert self._m % self._layers == 0, 'Number of examples not divisible by layers.'
-                applied_examples = np.reshape(applied_examples, (self._layers, self._m // self._layers, k, self._neurons))
+                applied_examples = np.reshape(examples, (self._layers, self._m // self._layers, k, self._neurons))
             else:
-                applied_examples = np.broadcast_to(applied_examples, (self._layers, self._m, k, self._neurons))
+                applied_examples = np.broadcast_to(examples, (self._layers, self._m, k, self._neurons))
             if self._supervised:
                 av_examples = np.mean(applied_examples, axis=1)
                 J = (1 / (big_r * self.neurons)) * np.einsum('kl, kui, luj -> klij', self.g(self._lmb), av_examples, av_examples)
@@ -504,10 +501,10 @@ class TAM:
                     J[l, l, i, i] = 0
         else: # in these cases we keep the interaction matrix with only dimensions neurons * neurons and add the g matrix later
             if self._supervised:
-                av_examples = np.mean(applied_examples, axis = 0)
+                av_examples = np.mean(examples, axis = 0)
                 J = (1 / (big_r * self.neurons)) * np.einsum('ui, uj -> ij', av_examples, av_examples)
             else:
-                J = (1 / (big_r * self.neurons * self._m)) * np.einsum('aui, auj -> ij', applied_examples, applied_examples)
+                J = (1 / (big_r * self.neurons * self._m)) * np.einsum('aui, auj -> ij', examples, examples)
         return J
 
     def set_interaction(self, lmb = None, split = None, supervised = None):
@@ -517,14 +514,16 @@ class TAM:
             self._split = split
         if supervised is not None:
             self._supervised = supervised
-        self._J = self.interaction(self._patterns, self._examples)
+        self._J = self.interaction(self._examples)
 
 
     def gen_patterns(self, k):
         return self.noise_patterns.choice([-1, 1], (k, self._neurons))
 
-    def gen_examples(self, k): # this technically generates the blurs, not the examples themselves
-        return self.noise_examples.choice([-1, 1], p=[(1 - self._r) / 2, (1 + self._r) / 2], size = (self._m, k, self._neurons))
+    def gen_examples(self, patterns):
+        k = np.shape(patterns)[0]
+        blurs = self.noise_examples.choice([-1, 1], p=[(1 - self._r) / 2, (1 + self._r) / 2], size = (self._m, k, self._neurons))
+        return blurs * patterns
 
     # mixture state
     def mix(self, n = None):

@@ -30,53 +30,68 @@ from MCclasses import TAM as tam
 # pbar is for the progress bar
 
 
-def splitting_optimal(entropy, neurons, layers, k, m, rho_values, suf,  max_it, error, av_counter, h_norm, minlmb, minT, dynamic, disable = False):
+def splitting_optimal(entropy, neurons, layers, k, m, r_values, beta_values, lmb_values, max_it, error, av_counter, h_norm, dynamic, checkerJ = None, checker = None, checkerpats = None, checkerrand = None, disable = False):
 
     t = process_time()
-    len_rho = len(rho_values)
-
-    interpolatorT = make_interp_spline(*mathToPython('maxT'+suf,'optpar'))
-    interpolatorL = make_interp_spline(*mathToPython('maxL'+suf,'optpar'))
+    len_r = len(r_values)
 
 
-    mattis_split = np.zeros((len_rho, 3, 3))
-    mattis_ex_split = np.zeros((len_rho, 3, 3))
-    max_its_split = np.zeros((len_rho), dtype=int)
-    mattis_notsplit = np.zeros((len_rho, 3, 3))
-    mattis_ex_notsplit = np.zeros((len_rho, 3, 3))
-    max_its_notsplit = np.zeros((len_rho), dtype=int)
+    mattis = np.zeros((2, len_r, 3, 3))
+    mattis_ex = np.zeros((2, len_r, 3, 3))
+    max_its = np.zeros((2, len_r), dtype=int)
 
-    rng_seeds = np.random.SeedSequence(entropy).spawn(len_rho)
+    rng_seeds = np.random.SeedSequence(entropy).spawn(2*len_r)
 
-    with tqdm(total=len_rho, disable=disable) as pbar:
-        for idx_rho, rho_v in enumerate(rho_values):
+    assert np.array_equal(np.random.default_rng(rng_seeds[0]).random(10), checkerrand), 'Checkerrand did not pass'
 
-            lmb_split = max(interpolatorL(3*rho_v), minlmb)
-            lmb_notsplit = max(interpolatorL(rho_v), minlmb)
+    with tqdm(total=len_r, disable=disable) as pbar:
+        for idx_r, r_v in enumerate(r_values):
 
-            beta_split = 1 / interpolatorT(3*rho_v) if interpolatorT(3*rho_v) > minT else np.inf
-            beta_notsplit = 1 / interpolatorT(rho_v) if interpolatorT(rho_v) > minT else np.inf
 
-            r = np.sqrt(1 / (rho_v * m + 1))
+            noise_notsplit = rng_seeds[2 * idx_r]
+            noise_split = rng_seeds[2 * idx_r + 1]
 
-            noise_split = rng_seeds[2 * idx_rho]
-            noise_notsplit = rng_seeds[2 * idx_rho + 1]
+            system = tam(neurons = neurons, layers = layers, lmb = lmb_values[0, idx_r], r = r_v, m = m, supervised = True, rng_ss=noise_notsplit,
+                         split = False)
 
-            system = tam(neurons = neurons, layers = layers, r = r, m = m, supervised = True, rng_ss=noise_split, lmb=lmb_split,
-                         split = True)
-
-            system.noise_patterns = np.random.default_rng(noise_split)
+            system.noise_patterns = np.random.default_rng(noise_notsplit)
             system.noise_examples = system.noise_patterns
-
-            system.add_patterns(k)
-
-            mattis_split[idx_rho], mattis_ex_split[idx_rho], max_its_split[idx_rho] = system.simulate(beta=beta_split, dynamic=dynamic, av_counter = av_counter, h_norm = h_norm, max_it = max_it, error = error, sim_rng = system.fast_noise)
-
-            system.set_interaction(lmb = lmb_notsplit, split = False)
             system.fast_noise = noise_notsplit
 
-            mattis_notsplit[idx_rho], mattis_ex_notsplit[idx_rho], max_its_notsplit[idx_rho] = system.simulate(beta=beta_notsplit, dynamic=dynamic, av_counter = av_counter, h_norm = h_norm, max_it = max_it, error = error)
+            system.add_patterns(k)
+            print(np.shape(system.patterns))
+            print(np.shape(checkerpats))
+            if np.array_equal(system.patterns, checkerpats):
+                print('Checkerpats passed')
+            else:
+                print('Checkerpats did not pass')
+            system.initial_state = system.mix()
+            system.external_field = system.mix(0)
 
+            mattis[0,idx_r], mattis_ex[0,idx_r], max_its[0,idx_r] = system.simulate(beta=beta_values[0, idx_r], dynamic=dynamic, av_counter = av_counter, h_norm = h_norm, max_it = max_it, error = error)
+
+            if np.array_equal(np.transpose(system.J, [0, 2, 1, 3]), checkerJ):
+                print('CheckerJ passed')
+            else:
+                print('CheckerJ did not pass.')
+
+            system.set_interaction(lmb = lmb_values[1, idx_r], split = True)
+            system.fast_noise = noise_split
+
+            mattis[1,idx_r], mattis_ex[1,idx_r], max_its[1,idx_r] = system.simulate(beta=beta_values[1, idx_r], dynamic=dynamic, av_counter = av_counter, h_norm = h_norm, max_it = max_it, error = error)
+
+            if np.array_equal(mattis[:,idx_r], checker[0][idx_r]):
+                print('Checkermattis passed')
+            else:
+                print('Checkermattis did not pass.')
+            if np.array_equal(mattis_ex[:, idx_r], checker[1][idx_r]):
+                print('Checkerex passed')
+            else:
+                print('Checkerex did not pass.')
+            if np.array_equal(max_its[:, idx_r], checker[2][idx_r]):
+                print('Checkerits passed')
+            else:
+                print('Checkerits did not pass.')
 
             if not disable:
                 pbar.update(1)
@@ -84,7 +99,7 @@ def splitting_optimal(entropy, neurons, layers, k, m, rho_values, suf,  max_it, 
     t = time() - t
     print(f'System ran in {round(t / 60)} minutes.')
 
-    return mattis_split, mattis_ex_split, max_its_split, mattis_notsplit, mattis_ex_notsplit, max_its_notsplit
+    return mattis, mattis_ex, max_its
 
 
 def splitting_beta(entropy, beta_values, neurons, k, layers, supervised, r, lmb, m, max_it, error, av_counter, h_norm, dynamic, disable = True):
@@ -94,12 +109,9 @@ def splitting_beta(entropy, beta_values, neurons, k, layers, supervised, r, lmb,
 
     len_beta = len(beta_values)
 
-    mattis_split = np.zeros((len_beta, 3, 3))
-    mattis_ex_split = np.zeros((len_beta, 3, 3))
-    max_its_split = np.zeros((len_beta), dtype=int)
-    mattis_notsplit = np.zeros((len_beta, 3, 3))
-    mattis_ex_notsplit = np.zeros((len_beta, 3, 3))
-    max_its_notsplit = np.zeros((len_beta), dtype=int)
+    mattis = np.zeros((2, len_beta, 3, 3))
+    mattis_ex = np.zeros((2, len_beta, 3, 3))
+    max_its = np.zeros((2, len_beta), dtype=int)
 
     t = process_time()
 
@@ -109,23 +121,25 @@ def splitting_beta(entropy, beta_values, neurons, k, layers, supervised, r, lmb,
     rng_seeds_notsplit = rng_seeds[1].spawn(len_beta)
 
 
-    system = tam(neurons = neurons, r = r, lmb = lmb, m = m, supervised = supervised, split = True, layers = layers)
+    system = tam(neurons = neurons, r = r, lmb = lmb, m = m, supervised = supervised, split = False, layers = layers)
     system.noise_patterns = np.random.default_rng(rng_seeds[0])
     system.noise_examples = system.noise_patterns
 
     system.add_patterns(k)
+    system.initial_state = system.mix()
+    system.external_field = system.mix(0)
 
     # run across the betas
     for beta_idx, beta in enumerate(tqdm(beta_values, disable = disable)):
 
-        mattis_split[beta_idx], mattis_ex_split[beta_idx], max_its_split[beta_idx] = system.simulate(beta=beta, sim_rng=rng_seeds_split[beta_idx], av_counter = av_counter, max_it = max_it, error = error, h_norm = h_norm, dynamic = dynamic)
-        system.set_interaction(split = False)
-        mattis_notsplit[3][beta_idx], mattis_ex_notsplit[4][beta_idx], max_its_notsplit[beta_idx] = system.simulate(beta=beta, sim_rng=rng_seeds_notsplit[beta_idx], av_counter = av_counter, max_it = max_it, error = error, h_norm = h_norm, dynamic = dynamic)
+        mattis[0, beta_idx], mattis_ex[0,beta_idx], max_its[0,beta_idx] = system.simulate(beta=beta, sim_rng=rng_seeds_notsplit[beta_idx], av_counter = av_counter, max_it = max_it, error = error, h_norm = h_norm, dynamic = dynamic)
+        system.set_interaction(split = True)
+        mattis[1, beta_idx], mattis_ex[1,beta_idx], max_its[1,beta_idx] = system.simulate(beta=beta, sim_rng=rng_seeds_split[beta_idx], av_counter = av_counter, max_it = max_it, error = error, h_norm = h_norm, dynamic = dynamic)
 
     if not disable:
         print(f'Sample ran in {round(process_time() - t / 60)} minutes.')
 
-    return mattis_split, mattis_ex_split, max_its_split, mattis_notsplit, mattis_ex_notsplit, max_its_notsplit
+    return mattis, mattis_ex, max_its
 
 
 def disentanglement(neurons, layers, k, r, m, lmb, split, supervised, beta, h_norm, max_it, error, av_counter, dynamic, rng_ss = None, av = True):
