@@ -270,6 +270,7 @@ def splitting_beta(entropy, beta_values, neurons, K, rho, lmb, M, max_it, error,
     # initialize the systems
     # first create the split system and then join the examples to create the notsplit system
     split = hop(rngSS=rng_seeds[0], noise_dif=True, **inputs_sys)
+
     inputs_sys_notsplit['K'] = split.pat
     jointex = np.full(shape=(split.L, inputs_sys_notsplit['M'], split.K, split.N), fill_value=np.concatenate(tuple(layer for layer in split.ex)))
     notsplit = hop(rngSS=rng_seeds[1], ex=jointex, noise_dif=False, **inputs_sys_notsplit)
@@ -280,13 +281,13 @@ def splitting_beta(entropy, beta_values, neurons, K, rho, lmb, M, max_it, error,
     # run across the betas
     for beta_idx, beta in enumerate(tqdm(beta_values, disable = disable)):
         output_list[0][beta_idx], output_list[1][beta_idx], output_list[2][beta_idx] = split.simulate(beta=beta,sim_rngSS=rng_seeds_split[beta_idx], cut=True, av=True, **inputs_sim)
+
         output_list[3][beta_idx], output_list[4][beta_idx], output_list[5][beta_idx] = notsplit.simulate(beta=beta, sim_rngSS=rng_seeds_notsplit[beta_idx], cut=True, av=True, **inputs_sim)
+
     if not disable:
         print(f'Sample ran in {round(process_time() - t / 60)} minutes.')
 
     return tuple(output_list)
-
-
 
 
 def MCHop_InAndOut(neurons, K, rho, M, mixM, lmb, sigma_type, quality, noise_dif, beta, H, max_it, error, av_counter,

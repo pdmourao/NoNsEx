@@ -101,8 +101,10 @@ class Experiment:
     # detect which samples are present
     def samples_present(self):
         assert self._file_prefix is not None, 'Method samples_present needs valid experiment.'
-        return [int(file.split('_sample')[-1][:-4]) for file in os.listdir(self._directory) if
+        samples = [int(file.split('_sample')[-1][:-4]) for file in os.listdir(self._directory) if
                                 self._file_prefix + 'sample' in os.path.join(self._directory, file)]
+        samples.sort()
+        return samples
 
     def samples_missing(self, total):
         sample_list = [sample for sample in range(total) if sample not in self.samples_present()]

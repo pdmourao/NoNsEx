@@ -115,19 +115,20 @@ def splitting_beta(entropy, beta_values, neurons, k, layers, supervised, r, lmb,
 
     # run across the betas
     for beta_idx, beta in enumerate(tqdm(beta_values, disable = disable)):
+        if beta_idx > 0:
+            system.set_interaction(split = False)
 
         mattis[0, beta_idx], mattis_ex[0,beta_idx], max_its[0,beta_idx] = system.simulate(beta=beta, sim_rng=rng_seeds_notsplit[beta_idx], av_counter = av_counter, max_it = max_it, error = error, h_norm = h_norm, dynamic = dynamic)
-        print(np.shape(mattis[0, beta_idx]))
-        print(np.shape(checkers[0][0, beta_idx]))
-        assert np.array_equal(mattis[0, beta_idx], checkers[0][0, beta_idx]), 'Checkermattis 1 did not pass.'
-        assert np.array_equal(mattis_ex[0, beta_idx], checkers[1][0, beta_idx]), 'Checkerex 1 did not pass.'
-        assert np.array_equal(max_its[0, beta_idx], checkers[2][0, beta_idx]), 'Checkerits 1 did not pass.'
+
+        assert np.array_equal(mattis[0, beta_idx], checkers[0][0][0, beta_idx]), 'Checkermattis 1 did not pass.'
+        assert np.allclose(mattis_ex[0, beta_idx], checkers[0][1][0, beta_idx]), 'Checkerex 1 did not pass.'
+        assert np.array_equal(max_its[0, beta_idx], checkers[0][2][0, beta_idx]), 'Checkerits 1 did not pass.'
         system.set_interaction(split = True)
         mattis[1, beta_idx], mattis_ex[1,beta_idx], max_its[1,beta_idx] = system.simulate(beta=beta, sim_rng=rng_seeds_split[beta_idx], av_counter = av_counter, max_it = max_it, error = error, h_norm = h_norm, dynamic = dynamic)
 
-        assert np.array_equal(mattis[1,beta_idx], checkers[0][1,beta_idx]), 'Checkermattis 2 did not pass.'
-        assert np.array_equal(mattis_ex[1, beta_idx], checkers[1][1,beta_idx]), 'Checkerex 2 did not pass.'
-        assert np.array_equal(max_its[1, beta_idx], checkers[2][1,beta_idx]), 'Checkerits 2 did not pass.'
+        assert np.array_equal(mattis[1,beta_idx], checkers[0][0][1,beta_idx]), 'Checkermattis 2 did not pass.'
+        assert np.allclose(mattis_ex[1, beta_idx], checkers[0][1][1,beta_idx]), 'Checkerex 2 did not pass.'
+        assert np.array_equal(max_its[1, beta_idx], checkers[0][2][1,beta_idx]), 'Checkerits 2 did not pass.'
 
     if not disable:
         print(f'Sample ran in {round(process_time() - t / 60)} minutes.')

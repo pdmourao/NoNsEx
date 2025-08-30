@@ -363,7 +363,7 @@ class TAM:
 
         # fast noise uses a seed sequence, since simulate always starts from the initial state
         # in order to get independent runs of the same system, one should further spawn independent seeds from this
-        # simulate should do this by default, but one should keep it in mind nonetheless
+        # simulate does this by default, but one should keep it in mind nonetheless
         self.fast_noise = rng_seeds[0]
         # slow noise already uses bit generators since the method add_patterns always starts from where it left off
         # if we used a seed sequence, it would start from the beginning everytime we called methods like add_pattern
